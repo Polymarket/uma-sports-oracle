@@ -154,8 +154,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
             SafeTransferLib.safeTransferFrom(ERC20(token), requestor, address(this), reward);
 
             // Approve the OO as spender on the reward token from the Adapter
-            if (IERC20(token).allowance(address(this), address(optimisticOracle)) < reward) {
-                IERC20(token).approve(address(optimisticOracle), type(uint256).max);
+            if (ERC20(token).allowance(address(this), address(optimisticOracle)) < reward) {
+                SafeTransferLib.safeApprove(ERC20(token), address(optimisticOracle), type(uint256).max);
             }
         }
 
