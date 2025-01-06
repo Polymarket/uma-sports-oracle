@@ -96,7 +96,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         return gameId;
     }
 
-
     function createMarket() external returns (bytes32 marketId) {
         // TODO
     }

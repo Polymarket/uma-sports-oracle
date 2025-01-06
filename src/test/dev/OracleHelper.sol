@@ -16,9 +16,8 @@ import {OptimisticOracleV2} from "../mocks/OptimisticOracleV2.sol";
 import {CollateralWhitelist} from "../mocks/CollateralWhitelist.sol";
 
 import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
- 
-abstract contract OracleHelper is IUmaSportsOracleEE, TestHelper {
 
+abstract contract OracleHelper is IUmaSportsOracleEE, TestHelper {
     address public admin = alice;
     UmaSportsOracle public oracle;
     address public usdc;
@@ -38,6 +37,4 @@ abstract contract OracleHelper is IUmaSportsOracleEE, TestHelper {
         vm.prank(admin);
         oracle = new UmaSportsOracle(ctf, finder);
     }
-
-
 }
