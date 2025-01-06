@@ -96,6 +96,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         return gameId;
     }
 
+
+    function createMarket() external returns (bytes32 marketId) {
+        // TODO
+    }
+
     /*///////////////////////////////////////////////////////////////////
                             INTERNAL 
     //////////////////////////////////////////////////////////////////*/
@@ -167,8 +172,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
         // Update the bond on the OO
         if (bond > 0) optimisticOracle.setBond(ORACLE_IDENTIFIER, timestamp, data, bond);
-        if (liveness > 0) {
-            optimisticOracle.setCustomLiveness(ORACLE_IDENTIFIER, timestamp, data, liveness);
-        }
+        if (liveness > 0) optimisticOracle.setCustomLiveness(ORACLE_IDENTIFIER, timestamp, data, liveness);
     }
 }
