@@ -10,6 +10,7 @@ interface IUmaSportsOracleEE {
     error Paused();
 
     error MarketAlreadyCreated();
+    error GameAlreadyCreated();
     error GameDoesNotExist();
 
     error CannotRequestGame();
@@ -18,7 +19,7 @@ interface IUmaSportsOracleEE {
     error InvalidBond();
 
     /// @notice Emitted when a Game is created
-    event GameCreated(bytes32 indexed gameId, uint256 indexed reward, uint256 indexed bond);
+    event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
 
     /// @notice Emitted when a Market is created
     event MarketCreated(bytes32 indexed marketId, bytes32 indexed gameId, uint8 marketType, uint256 line);
@@ -27,10 +28,20 @@ interface IUmaSportsOracleEE {
 interface IUmaSportsOracle is IUmaSportsOracleEE {
     function createGame(
         bytes memory ancillaryData,
-        Ordering order,
-        address rewardToken,
+        Ordering ordering,
+        address token,
         uint256 reward,
         uint256 bond,
         uint256 liveness
     ) external returns (bytes32);
+
+    function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId);
+
+    function getGame(bytes32 gameId) external view returns (GameData memory);
+
+    function getMarket(bytes32 marketId) external view returns (MarketData memory);
+
+    function ready(bytes32 gameId) external view returns (bool);
+
+    function isGameCreated(bytes32 gameId) external view returns (bool);
 }

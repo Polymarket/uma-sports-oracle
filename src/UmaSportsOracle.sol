@@ -85,19 +85,38 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         if (ancillaryData.length == 0 || !AncillaryDataLib.isValidAncillaryData(data)) revert InvalidAncillaryData();
 
         gameId = keccak256(data);
-        uint256 timestamp = block.timestamp;
 
-        // Send out OO data request
-        _requestData(msg.sender, timestamp, data, token, reward, bond, liveness);
+        // Verify that the game is unique
+        if (isGameCreated(gameId)) revert GameAlreadyCreated();
+
+        uint256 timestamp = block.timestamp;
 
         // Store game
         _saveGame(gameId, msg.sender, timestamp, data, ordering, reward, bond, liveness);
 
+        // Send out OO data request
+        _requestData(msg.sender, timestamp, data, token, reward, bond, liveness);
+
+        emit GameCreated(gameId, data, timestamp);
         return gameId;
     }
 
-    function createMarket() external returns (bytes32 marketId) {
+    function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId) {
         // TODO
+
+        return marketId;
+    }
+
+    function getGame(bytes32 gameId) external view returns (GameData memory) {
+        return games[gameId];
+    }
+
+    function getMarket(bytes32 marketId) external view returns (MarketData memory) {
+        return markets[marketId];
+    }
+
+    function isGameCreated(bytes32 gameId) public view returns (bool) {
+        return games[gameId].ancillaryData.length > 0;
     }
 
     /*///////////////////////////////////////////////////////////////////
