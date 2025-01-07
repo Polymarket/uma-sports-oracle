@@ -126,7 +126,7 @@ contract UmaSportsOracleTest is OracleSetup {
         if (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw) {
             _line = 0;
         }
-        
+
         uint256 outcomeCount = 2;
         if (marketType == MarketType.WinnerDraw) {
             outcomeCount = 3;
