@@ -6,17 +6,15 @@ import {MarketType, GameData, MarketData, Ordering} from "../libraries/Structs.s
 interface IUmaSportsOracleEE {
     error UnsupportedToken();
     error InvalidAncillaryData();
-
-    error Paused();
-
-    error MarketAlreadyCreated();
     error GameAlreadyCreated();
     error GameDoesNotExist();
 
-    error CannotRequestGame();
+    error MarketAlreadyCreated();
 
     error InvalidLine();
     error InvalidBond();
+
+    error Paused();
 
     /// @notice Emitted when a Game is created
     event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);

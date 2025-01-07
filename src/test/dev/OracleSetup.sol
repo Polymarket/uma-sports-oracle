@@ -4,13 +4,14 @@ pragma solidity ^0.8.27;
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
-import {IERC20} from "src/interfaces/IERC20.sol";
 import {IUmaSportsOracleEE} from "src/interfaces/IUmaSportsOracle.sol";
+
+import {IERC20} from "../interfaces/IERC20.sol";
 
 import {USDC} from "../mocks/USDC.sol";
 import {Finder} from "../mocks/Finder.sol";
+import {AddressWhitelist} from "../mocks/AddressWhitelist.sol";
 import {OptimisticOracleV2} from "../mocks/OptimisticOracleV2.sol";
-import {CollateralWhitelist} from "../mocks/CollateralWhitelist.sol";
 
 import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
 
@@ -27,7 +28,7 @@ abstract contract OracleSetup is IUmaSportsOracleEE, TestHelper {
         ctf = DeployLib.deployConditionalTokens();
         usdc = address(new USDC());
 
-        whitelist = address(new CollateralWhitelist());
+        whitelist = address(new AddressWhitelist());
         optimisticOracle = address(new OptimisticOracleV2());
         finder = address(new Finder(optimisticOracle, whitelist));
 

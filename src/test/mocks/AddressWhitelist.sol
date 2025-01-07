@@ -3,13 +3,19 @@ pragma solidity ^0.8.27;
 
 import {IAddressWhitelist} from "src/interfaces/IAddressWhitelist.sol";
 
-contract CollateralWhitelist is IAddressWhitelist {
+contract AddressWhitelist is IAddressWhitelist {
+    bool public _isOnWhitelist = true;
+
     function addToWhitelist(address) external {}
 
     function removeFromWhitelist(address) external {}
 
-    function isOnWhitelist(address) external pure returns (bool) {
-        return true;
+    function isOnWhitelist(address) external view returns (bool) {
+        return _isOnWhitelist;
+    }
+
+    function setIsOnWhitelist(bool b) external {
+        _isOnWhitelist = b;
     }
 
     function getWhitelist() external pure returns (address[] memory) {

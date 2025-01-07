@@ -101,15 +101,42 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         return gameId;
     }
 
+    /// @notice Creates a Market based on an underlying Game
+    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param marketType   - The marketType of the Market
+    /// @param line         - The line of the Market. 0 if the marketType is type Winner
     function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId) {
-        // TODO
+        // Validate the Game
+        if (!isGameCreated(gameId)) revert GameDoesNotExist();
+
+        // Validate the marketType and line
+        if (line > 0 && (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw)) {
+            revert InvalidLine();
+        }
+
+        marketId = getMarketId(gameId, marketType, line, msg.sender);
+
+
+        emit MarketCreated(marketId, gameId, uint8(marketType), line);
 
         return marketId;
     }
 
+    /*///////////////////////////////////////////////////////////////////
+                            VIEW FUNCTIONS 
+    //////////////////////////////////////////////////////////////////*/
+
     function ready(bytes32 gameId) public view returns (bool) {
         // TODO
         return false;
+    }
+
+    function getMarketId(bytes32 gameId, MarketType marketType, uint256 line, address creator)
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(gameId, marketType, line, creator));
     }
 
     function getGame(bytes32 gameId) external view returns (GameData memory) {
@@ -122,6 +149,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
     function isGameCreated(bytes32 gameId) public view returns (bool) {
         return games[gameId].ancillaryData.length > 0;
+    }
+
+    function isMarketCreated(bytes32 marketId) public view returns (bool) {
+        // TODO
     }
 
     /*///////////////////////////////////////////////////////////////////
