@@ -110,6 +110,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         // Validate the Game
         if (!isGameCreated(gameId)) revert GameDoesNotExist();
 
+        // Validate that we can create a Market from the Game
+
         // Validate the marketType and line
         if (line > 0 && (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw)) {
             revert InvalidLine();
@@ -120,23 +122,32 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         // Validate that the market is unique
         if (isMarketCreated(marketId)) revert MarketAlreadyCreated();
 
-        // Create the underlying CTF market
-        bytes32 conditionId = _prepareMarket(marketId, marketType);
-
         // Store the Market
         _saveMarket(marketId, gameId, line, marketType);
 
+        // Create the underlying CTF market
+        bytes32 conditionId = _prepareMarket(marketId, marketType);
+
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
         return marketId;
+    }
+
+    /// @notice Settles a Game by fetching scores from the OO and setting them on the Oracle
+    /// @param gameId   - The unique GameId
+    function settleGame(bytes32 gameId) external {
+        GameData storage gameData = games[gameId];
+
+        if (gameData.state != GameState.Created) revert GameCannotBeSettled();
     }
 
     /*///////////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS 
     //////////////////////////////////////////////////////////////////*/
 
+    /// @notice Checks if a Game is ready to be settled
+    /// @param gameId   - The unique GameId
     function ready(bytes32 gameId) public view returns (bool) {
-        // TODO
-        return false;
+        return _ready(games[gameId]);
     }
 
     function getMarketId(bytes32 gameId, MarketType marketType, uint256 line, address creator)
@@ -156,11 +167,39 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     }
 
     function isGameCreated(bytes32 gameId) public view returns (bool) {
-        return games[gameId].ancillaryData.length > 0;
+        return games[gameId].ancillaryData.length > 0 && games[gameId].state == GameState.Created;
     }
 
     function isMarketCreated(bytes32 marketId) public view returns (bool) {
-        return markets[marketId].gameId != bytes32(0);
+        return markets[marketId].gameId != bytes32(0) && markets[marketId].state == MarketState.Created;
+    }
+
+    /*///////////////////////////////////////////////////////////////////
+                            ADMIN 
+    //////////////////////////////////////////////////////////////////*/
+
+    function pauseGame(bytes32) external onlyAdmin {
+        // TODO
+    }
+
+    function unpauseGame(bytes32) external onlyAdmin {
+        // TODO
+    }
+
+    function emergencySettleGame(bytes32) external onlyAdmin {
+        // TODO
+    }
+
+    function pauseMarket(bytes32) external onlyAdmin {
+        // TODO
+    }
+
+    function unpauseMarket(bytes32) external onlyAdmin {
+        // TODO
+    }
+
+    function emergencyResolveMarket(bytes32) external onlyAdmin {
+        // TODO
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -239,5 +278,14 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         // Update the bond on the OO
         if (bond > 0) optimisticOracle.setBond(ORACLE_IDENTIFIER, timestamp, data, bond);
         if (liveness > 0) optimisticOracle.setCustomLiveness(ORACLE_IDENTIFIER, timestamp, data, liveness);
+    }
+
+    function _ready(GameData storage gameData) internal view returns (bool) {
+        if (gameData.state != GameState.Created) return false;
+        return _priceExists(gameData.timestamp, gameData.ancillaryData);
+    }
+
+    function _priceExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
+        return optimisticOracle.hasPrice(address(this), ORACLE_IDENTIFIER, requestTimestamp, ancillaryData);
     }
 }

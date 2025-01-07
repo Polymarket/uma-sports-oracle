@@ -10,9 +10,10 @@ interface IUmaSportsOracleEE {
     error GameDoesNotExist();
 
     error MarketAlreadyCreated();
-
     error InvalidLine();
     error InvalidBond();
+
+    error GameCannotBeSettled();
 
     error Paused();
 
@@ -23,6 +24,24 @@ interface IUmaSportsOracleEE {
     event MarketCreated(
         bytes32 indexed marketId, bytes32 indexed gameId, bytes32 indexed conditionId, uint8 marketType, uint256 line
     );
+
+    /// @notice Emitted when a Game is settled
+    event GameSettled(bytes32 indexed gameId, uint256 indexed home, uint256 indexed away);
+
+    // TODO: fill in natspec
+    event GameEmergencySettled(bytes32 indexed gameId, uint256 home, uint256 indexed away);
+
+    event MarketResolved(bytes32 indexed marketId, uint256[] payouts);
+
+    event MarketEmergencyResolved(bytes32 indexed marketId, uint256[] payouts);
+
+    event GamePaused(bytes32 indexed gameId);
+
+    event GameUnpaused(bytes32 indexed gameId);
+
+    event MarketPaused(bytes32 indexed marketId);
+
+    event MarketUnpaused(bytes32 indexed marketId);
 }
 
 interface IUmaSportsOracle is IUmaSportsOracleEE {

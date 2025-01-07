@@ -37,7 +37,7 @@ struct GameData {
     uint256 bond;
     // The custom liveness for the Game, 0 for default
     uint256 liveness;
-    // The request timestamp
+    // The OO request timestamp
     uint256 timestamp;
     // The ancillary data for the Game
     bytes ancillaryData;

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import {OracleSetup} from "./dev/OracleSetup.sol";
-import {console2 as console} from "lib/forge-std/src/Test.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
 import {IOptimisticOracleV2} from "src/interfaces/IOptimisticOracleV2.sol";
