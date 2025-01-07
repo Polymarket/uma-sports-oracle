@@ -148,4 +148,24 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(marketType), uint8(marketData.marketType));
         assertEq(uint8(MarketState.Created), uint8(marketData.state));
     }
+
+    function test_createMarket_revert_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+    }
+
+    function test_createMarket_revert_InvalidLine() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+    }
+
+    function test_createMarket_revert_MarketAlreadyCreated() public {
+        test_createMarket();
+
+        vm.expectRevert(MarketAlreadyCreated.selector);
+        vm.prank(admin);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+    }
 }
