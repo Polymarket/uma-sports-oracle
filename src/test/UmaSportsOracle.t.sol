@@ -7,20 +7,41 @@ import {console2 as console} from "lib/forge-std/src/Test.sol";
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
 import {IOptimisticOracleV2} from "src/interfaces/IOptimisticOracleV2.sol";
 
-import { IAddressWhitelistMock } from "./interfaces/IAddressWhitelistMock.sol";
+import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
-import {Ordering, GameData, GameState} from "src/libraries/Structs.sol";
+import {Ordering, GameData, GameState, MarketState, MarketType, MarketData} from "src/libraries/Structs.sol";
 
 contract UmaSportsOracleTest is OracleSetup {
-    function test_initialState() public view {
+    function testSetup() public view {
         assertEq(ctf, address(oracle.ctf()));
         assertEq(optimisticOracle, address(oracle.optimisticOracle()));
         assertEq(whitelist, address(oracle.addressWhitelist()));
         assertTrue(oracle.isAdmin(admin));
     }
 
-    function test_createGame(uint256 _reward, uint256 _bond, uint256 _liveness, uint8 _ordering, uint256 _data)
+    function test_createGame() public {
+        uint256 reward = 1_000_000;
+        uint256 bond = 100_000_000;
+        uint256 liveness = 0;
+        Ordering ordering = Ordering.HomeVsAway;
+
+        deal(usdc, admin, reward);
+
+        vm.expectEmit();
+        emit GameCreated(gameId, appendedAncillaryData, block.timestamp);
+
+        vm.prank(admin);
+        oracle.createGame(ancillaryData, ordering, usdc, reward, bond, liveness);
+
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(admin, gameData.creator);
+        assertEq(reward, gameData.reward);
+        assertEq(uint8(GameState.Created), uint8(gameData.state));
+        assertEq(liveness, gameData.liveness);
+    }
+
+    function test_createGame_fuzz(uint256 _reward, uint256 _bond, uint256 _liveness, uint8 _ordering, uint256 _data)
         public
     {
         _ordering = uint8(bound(_ordering, 0, 1));
@@ -37,11 +58,11 @@ contract UmaSportsOracleTest is OracleSetup {
         emit GameCreated(expectedGameId, expectedAncillaryData, block.timestamp);
 
         vm.prank(admin);
-        bytes32 gameId = oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
+        bytes32 gID = oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
 
         // Verify state post game creation
-        assertEq(expectedGameId, gameId);
-        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(expectedGameId, gID);
+        GameData memory gameData = oracle.getGame(gID);
         assertEq(admin, gameData.creator);
         assertEq(_reward, gameData.reward);
         assertEq(uint8(GameState.Created), uint8(gameData.state));
@@ -49,62 +70,82 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(expectedAncillaryData, gameData.ancillaryData);
     }
 
-    function test_revert_createGameAlreadyCreated(
-        uint256 _reward,
-        uint256 _bond,
-        uint256 _liveness,
-        uint8 _ordering,
-        uint256 _data
-    ) public {
-        _ordering = uint8(bound(_ordering, 0, 1));
-        Ordering ordering = Ordering(_ordering);
-
-        bytes memory data = abi.encodePacked(bound(_data, 1, 1000));
-
-        deal(usdc, admin, _reward);
-
-        vm.prank(admin);
-        oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
+    function test_revert_createGameAlreadyCreated() public {
+        test_createGame();
 
         vm.expectRevert(GameAlreadyCreated.selector);
         vm.prank(admin);
-        oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
+        oracle.createGame(ancillaryData, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_revert_createGameUnsupportedToken(
-        uint256 _reward,
-        uint256 _bond,
-        uint256 _liveness,
-        uint8 _ordering,
-        uint256 _data
-    ) public {
-        _ordering = uint8(bound(_ordering, 0, 1));
-        Ordering ordering = Ordering(_ordering);
-
-        bytes memory data = abi.encodePacked(bound(_data, 1, 1000));
-
+    function test_revert_createGameUnsupportedToken() public {
         IAddressWhitelistMock(whitelist).setIsOnWhitelist(false);
 
         vm.expectRevert(UnsupportedToken.selector);
         vm.prank(admin);
-        oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
+        oracle.createGame(ancillaryData, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_revert_createGameInvalidAncillaryData(
-        uint256 _reward,
-        uint256 _bond,
-        uint256 _liveness,
-        uint8 _ordering
-    ) public {
-        _ordering = uint8(bound(_ordering, 0, 1));
-        Ordering ordering = Ordering(_ordering);
-
+    function test_revert_createGameInvalidAncillaryData() public {
         bytes memory data = hex"";
 
         vm.expectRevert(InvalidAncillaryData.selector);
         vm.prank(admin);
-        oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);
+        oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_createMarket() public {}
+    function test_createMarket() public {
+        test_createGame();
+        MarketType marketType = MarketType.WinnerBinary;
+        uint256 line = 0;
+
+        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+
+        vm.expectEmit();
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+
+        vm.prank(admin);
+        oracle.createMarket(gameId, marketType, line);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+
+        // Verify the Market's state post creation
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(MarketType.WinnerBinary), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Created), uint8(marketData.state));
+    }
+
+    function test_createMarket_fuzz(uint256 _line, uint8 _marketType) public {
+        test_createGame();
+
+        _marketType = uint8(bound(_marketType, 0, 3));
+        MarketType marketType = MarketType(_marketType);
+
+        if (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw) {
+            _line = 0;
+        }
+        
+        uint256 outcomeCount = 2;
+        if (marketType == MarketType.WinnerDraw) {
+            outcomeCount = 3;
+        }
+
+        bytes32 marketId = oracle.getMarketId(gameId, marketType, _line, admin);
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
+
+        vm.expectEmit();
+        emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
+
+        vm.prank(admin);
+        oracle.createMarket(gameId, marketType, _line);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+
+        assertEq(gameId, marketData.gameId);
+        assertEq(_line, marketData.line);
+        assertEq(uint8(marketType), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Created), uint8(marketData.state));
+    }
 }

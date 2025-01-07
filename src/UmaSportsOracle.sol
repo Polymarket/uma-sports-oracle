@@ -102,6 +102,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     }
 
     /// @notice Creates a Market based on an underlying Game
+    /// @dev Creates the underlying CTF market based on the marketId
     /// @param gameId       - The unique Id of a Game to be linked to the Market
     /// @param marketType   - The marketType of the Market
     /// @param line         - The line of the Market. 0 if the marketType is type Winner
@@ -116,9 +117,16 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
         marketId = getMarketId(gameId, marketType, line, msg.sender);
 
+        // Validate that the market is unique
+        if (isMarketCreated(marketId)) revert MarketAlreadyCreated();
 
-        emit MarketCreated(marketId, gameId, uint8(marketType), line);
+        // Create the underlying CTF market
+        bytes32 conditionId = _prepareMarket(marketId, marketType);
 
+        // Store the Market
+        _saveMarket(marketId, gameId, line, marketType);
+
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
         return marketId;
     }
 
@@ -152,7 +160,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     }
 
     function isMarketCreated(bytes32 marketId) public view returns (bool) {
-        // TODO
+        return markets[marketId].gameId != bytes32(0);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -188,6 +196,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
             homeScore: 0,
             awayScore: 0
         });
+    }
+
+    function _saveMarket(bytes32 marketId, bytes32 gameId, uint256 line, MarketType marketType) internal {
+        markets[marketId] = MarketData({gameId: gameId, line: line, marketType: marketType, state: MarketState.Created});
     }
 
     /// @notice Request data from the OO

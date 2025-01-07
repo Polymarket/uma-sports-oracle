@@ -20,7 +20,9 @@ interface IUmaSportsOracleEE {
     event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
 
     /// @notice Emitted when a Market is created
-    event MarketCreated(bytes32 indexed marketId, bytes32 indexed gameId, uint8 marketType, uint256 line);
+    event MarketCreated(
+        bytes32 indexed marketId, bytes32 indexed gameId, bytes32 indexed conditionId, uint8 marketType, uint256 line
+    );
 }
 
 interface IUmaSportsOracle is IUmaSportsOracleEE {

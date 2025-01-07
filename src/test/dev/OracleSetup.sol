@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
+import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {IUmaSportsOracleEE} from "src/interfaces/IUmaSportsOracle.sol";
 
 import {IERC20} from "../interfaces/IERC20.sol";
@@ -23,6 +24,12 @@ abstract contract OracleSetup is IUmaSportsOracleEE, TestHelper {
     address public finder;
     address public whitelist;
     address public optimisticOracle;
+
+    bytes public constant ancillaryData =
+        hex"7b277469746c65273a202757696c6c206974207261696e20696e204e5943206f6e204672696461793f272c202764657363273a202757696c6c206974207261696e20696e204e5943206f6e204672696461793f277d";
+
+    bytes public appendedAncillaryData = AncillaryDataLib.appendAncillaryData(admin, ancillaryData);
+    bytes32 public gameId = keccak256(appendedAncillaryData);
 
     function setUp() public {
         ctf = DeployLib.deployConditionalTokens();

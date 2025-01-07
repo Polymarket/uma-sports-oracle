@@ -14,17 +14,15 @@ abstract contract ConditionalTokensModule {
 
     /// @notice Prepare a new Condition on the CTF
     /// @dev The marketId will be used as the questionID
-    function _prepareMarket(bytes32 marketId, MarketType marketType) internal {
+    function _prepareMarket(bytes32 marketId, MarketType marketType) internal returns (bytes32) {
         if (marketType == MarketType.WinnerDraw) {
-            _prepareConditionByOutcome(marketId, 3);
-        } else {
-            _prepareConditionByOutcome(marketId, 2);
+            return _prepareConditionByOutcome(marketId, 3);
         }
+        return _prepareConditionByOutcome(marketId, 2);
     }
 
-    function _prepareConditionByOutcome(bytes32 marketId, uint256 outcomeCount) internal {
+    function _prepareConditionByOutcome(bytes32 marketId, uint256 outcomeCount) internal returns (bytes32) {
         ctf.prepareCondition(address(this), marketId, outcomeCount);
+        return keccak256(abi.encodePacked(address(this), marketId, outcomeCount));
     }
-
-    // TODO: resolve ctf market, resolve Condition functions
 }
