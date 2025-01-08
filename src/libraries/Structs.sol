@@ -31,6 +31,8 @@ struct GameData {
     uint32 homeScore;
     // The score of the away team
     uint32 awayScore;
+    // The ERC20 reward token
+    address token;
     // The reward used to pay OO proposers
     uint256 reward;
     // The bond which OO proposers must put up

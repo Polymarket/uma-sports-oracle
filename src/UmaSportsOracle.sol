@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 import {Auth} from "./modules/Auth.sol";
 import {ConditionalTokensModule} from "./modules/ConditionalTokensModule.sol";
 
+import {ScoreDecoderLib} from "./libraries/ScoreDecoderLib.sol";
 import {AncillaryDataLib} from "./libraries/AncillaryDataLib.sol";
 import {Ordering, MarketType, MarketData, MarketState, GameState, GameData} from "./libraries/Structs.sol";
 
@@ -92,7 +93,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         uint256 timestamp = block.timestamp;
 
         // Store game
-        _saveGame(gameId, msg.sender, timestamp, data, ordering, reward, bond, liveness);
+        _saveGame(gameId, msg.sender, timestamp, data, ordering, token, reward, bond, liveness);
 
         // Send out OO data request
         _requestData(msg.sender, timestamp, data, token, reward, bond, liveness);
@@ -107,10 +108,13 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     /// @param marketType   - The marketType of the Market
     /// @param line         - The line of the Market. 0 if the marketType is type Winner
     function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId) {
-        // Validate the Game
-        if (!isGameCreated(gameId)) revert GameDoesNotExist();
+        GameData storage gameData = games[gameId];
+
+        // Validate that the Game exists
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
         // Validate that we can create a Market from the Game
+        if (gameData.state != GameState.Created) revert InvalidGame();
 
         // Validate the marketType and line
         if (line > 0 && (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw)) {
@@ -137,7 +141,16 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     function settleGame(bytes32 gameId) external {
         GameData storage gameData = games[gameId];
 
-        if (gameData.state != GameState.Created) revert GameCannotBeSettled();
+        // Ensure that the Game exists
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+
+        // Only a Game in state Created can be settled
+        if (gameData.state != GameState.Created) revert GameInInvalidSettleState();
+        // Can only settle a game with valid OO data
+        if (!_dataExists(gameData.timestamp, gameData.ancillaryData)) revert DataDoesNotExist();
+
+        // Settle the game
+        _settle(gameId, gameData);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -167,11 +180,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     }
 
     function isGameCreated(bytes32 gameId) public view returns (bool) {
-        return games[gameId].ancillaryData.length > 0 && games[gameId].state == GameState.Created;
+        return _isGameCreated(games[gameId]);
     }
 
     function isMarketCreated(bytes32 marketId) public view returns (bool) {
-        return markets[marketId].gameId != bytes32(0) && markets[marketId].state == MarketState.Created;
+        return _isMarketCreated(markets[marketId]);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -180,6 +193,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
     function pauseGame(bytes32) external onlyAdmin {
         // TODO
+        // NOTE: Game can be any state to be paused
     }
 
     function unpauseGame(bytes32) external onlyAdmin {
@@ -188,6 +202,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
     function emergencySettleGame(bytes32) external onlyAdmin {
         // TODO
+        // NOTE: Game must be in state Paused to be EmergencySettled
+        // correctly settled games can still be paused then emergency settled
     }
 
     function pauseMarket(bytes32) external onlyAdmin {
@@ -210,8 +226,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     /// @param creator          - Address of the creator
     /// @param timestamp        - Timestamp used in the OO request
     /// @param data             - Data used to resolve a Game
-    /// @param reward           - Reward amount, denominated in rewardToken
-    /// @param bond             - Bond amount used, denominated in rewardToken
+    /// @param token            - ERC20 token used to pay rewards and bonds
+    /// @param reward           - Reward amount, denominated in token
+    /// @param bond             - Bond amount used, denominated in token
     /// @param liveness         - UMA liveness period, will be the default liveness period if 0.
     function _saveGame(
         bytes32 gameId,
@@ -219,6 +236,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         uint256 timestamp,
         bytes memory data,
         Ordering ordering,
+        address token,
         uint256 reward,
         uint256 bond,
         uint256 liveness
@@ -228,6 +246,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
             ordering: ordering,
             creator: creator,
             timestamp: timestamp,
+            token: token,
             reward: reward,
             bond: bond,
             liveness: liveness,
@@ -260,8 +279,12 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         uint256 liveness
     ) internal {
         if (reward > 0) {
-            // Transfer the reward from the requester to the Oracle
-            SafeTransferLib.safeTransferFrom(ERC20(token), requestor, address(this), reward);
+            // If the requestor is not the Oracle, the requestor pays for the price request
+            // If not, the Oracle pays for the price request using the refunded reward
+            if (requestor != address(this)) {
+                // Transfer the reward from the requestor to the Oracle
+                SafeTransferLib.safeTransferFrom(ERC20(token), requestor, address(this), reward);
+            }
 
             // Approve the OO as spender on the reward token from the Adapter
             if (ERC20(token).allowance(address(this), address(optimisticOracle)) < reward) {
@@ -273,6 +296,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         optimisticOracle.requestPrice(ORACLE_IDENTIFIER, timestamp, data, IERC20(token), reward);
 
         // Ensure that request is event based
+        // Event based ensures that:
+        // 1. The timestamp at which the request is evaluated is the time of the proposal
+        // 2. The proposer cannot propose the ignorePrice value in the proposer/dispute flow
+        // 3. RefundOnDispute is automatically set, meaning disputes trigger the reward to be refunded
+        // Meaning, the only way to get the ignore price value is through the DVM i.e through a dispute
         optimisticOracle.setEventBased(ORACLE_IDENTIFIER, timestamp, data);
 
         // Update the bond on the OO
@@ -280,12 +308,74 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         if (liveness > 0) optimisticOracle.setCustomLiveness(ORACLE_IDENTIFIER, timestamp, data, liveness);
     }
 
-    function _ready(GameData storage gameData) internal view returns (bool) {
-        if (gameData.state != GameState.Created) return false;
-        return _priceExists(gameData.timestamp, gameData.ancillaryData);
+    // TODO: natspec
+    function _settle(bytes32 gameId, GameData storage gameData) internal {
+        // Get the data from the OO
+        int256 data = optimisticOracle.settleAndGetPrice(ORACLE_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
+
+        // If cancelled, cancel the game
+        if (_isCanceled(data)) return _cancelGame(gameId, gameData);
+        // If ignore, reset the game
+        if (_isIgnore(data)) return _resetGame(gameId, gameData);
+
+        // Decode the scores from the OO data and set them in storage
+        (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(data);
+
+        gameData.homeScore = home;
+        gameData.awayScore = away;
+        gameData.state = GameState.Settled;
+
+        emit GameSettled(gameId, home, away);
     }
 
-    function _priceExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
+    // TODO: natspec
+    function _cancelGame(bytes32 gameId, GameData storage gameData) internal {
+        gameData.state = GameState.Canceled;
+        emit GameCanceled(gameId);
+    }
+
+    function _resetGame(bytes32 gameId, GameData storage gameData) internal {
+        uint256 timestamp = block.timestamp;
+
+        // Update the request timestamp
+        gameData.timestamp = timestamp;
+
+        // Send out a new data request
+        _requestData(
+            address(this),
+            timestamp,
+            gameData.ancillaryData,
+            gameData.token,
+            gameData.reward,
+            gameData.bond,
+            gameData.liveness
+        );
+
+        emit GameReset(gameId);
+    }
+
+    function _isGameCreated(GameData storage gameData) internal view returns (bool) {
+        return gameData.ancillaryData.length > 0;
+    }
+
+    function _isMarketCreated(MarketData storage marketData) internal view returns (bool) {
+        return marketData.gameId != bytes32(0);
+    }
+
+    function _ready(GameData storage gameData) internal view returns (bool) {
+        if (gameData.state != GameState.Created) return false;
+        return _dataExists(gameData.timestamp, gameData.ancillaryData);
+    }
+
+    function _dataExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
         return optimisticOracle.hasPrice(address(this), ORACLE_IDENTIFIER, requestTimestamp, ancillaryData);
+    }
+
+    function _isCanceled(int256 data) internal pure returns (bool) {
+        return data == type(int256).max;
+    }
+
+    function _isIgnore(int256 data) internal pure returns (bool) {
+        return data == type(int256).min;
     }
 }

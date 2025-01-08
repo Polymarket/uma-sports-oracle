@@ -10,10 +10,12 @@ interface IUmaSportsOracleEE {
     error GameDoesNotExist();
 
     error MarketAlreadyCreated();
+    error InvalidGame();
     error InvalidLine();
     error InvalidBond();
 
-    error GameCannotBeSettled();
+    error GameInInvalidSettleState();
+    error DataDoesNotExist();
 
     error Paused();
 
@@ -24,6 +26,10 @@ interface IUmaSportsOracleEE {
     event MarketCreated(
         bytes32 indexed marketId, bytes32 indexed gameId, bytes32 indexed conditionId, uint8 marketType, uint256 line
     );
+
+    event GameCanceled(bytes32 indexed gameId);
+
+    event GameReset(bytes32 indexed gameId);
 
     /// @notice Emitted when a Game is settled
     event GameSettled(bytes32 indexed gameId, uint256 indexed home, uint256 indexed away);
