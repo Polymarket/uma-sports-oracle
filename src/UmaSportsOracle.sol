@@ -153,6 +153,12 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         _settle(gameId, gameData);
     }
 
+    /// @notice Resolves a Market using the scores of a Settled Game
+    /// @param marketId -   The unique marketId
+    function resolveMarket(bytes32 marketId) external {
+        // TODO
+    }
+
     /*///////////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS 
     //////////////////////////////////////////////////////////////////*/
@@ -193,7 +199,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
 
     function pauseGame(bytes32) external onlyAdmin {
         // TODO
-        // NOTE: Game can be any state to be paused
+        // NOTE: Game can be in any state to be paused
     }
 
     function unpauseGame(bytes32) external onlyAdmin {

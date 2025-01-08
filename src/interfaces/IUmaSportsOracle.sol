@@ -27,26 +27,34 @@ interface IUmaSportsOracleEE {
         bytes32 indexed marketId, bytes32 indexed gameId, bytes32 indexed conditionId, uint8 marketType, uint256 line
     );
 
+    /// @notice Emitted when a Game is Canceled
     event GameCanceled(bytes32 indexed gameId);
 
+    /// @notice Emitted when a Game is Reset
     event GameReset(bytes32 indexed gameId);
 
     /// @notice Emitted when a Game is settled
     event GameSettled(bytes32 indexed gameId, uint256 indexed home, uint256 indexed away);
 
-    // TODO: fill in natspec
+    /// @notice Emitted when a Game is emergency settled
     event GameEmergencySettled(bytes32 indexed gameId, uint256 home, uint256 indexed away);
 
+    /// @notice Emitted when a Market is resolved
     event MarketResolved(bytes32 indexed marketId, uint256[] payouts);
 
+    /// @notice Emitted when a Market is emergency resolved
     event MarketEmergencyResolved(bytes32 indexed marketId, uint256[] payouts);
 
+    /// @notice Emitted when a Game is paused
     event GamePaused(bytes32 indexed gameId);
 
+    /// @notice Emitted when a Game is unpaused
     event GameUnpaused(bytes32 indexed gameId);
 
+    /// @notice Emitted when a Market is paused
     event MarketPaused(bytes32 indexed marketId);
 
+    /// @notice Emitted when a Market is unpaused
     event MarketUnpaused(bytes32 indexed marketId);
 }
 
@@ -61,6 +69,10 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
     ) external returns (bytes32);
 
     function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId);
+
+    function settleGame(bytes32 gameId) external;
+
+    function resolveMarket(bytes32 marketId) external;
 
     function getGame(bytes32 gameId) external view returns (GameData memory);
 
