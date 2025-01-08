@@ -145,7 +145,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
         // Only a Game in state Created can be settled
-        if (gameData.state != GameState.Created) revert GameInInvalidSettleState();
+        if (gameData.state != GameState.Created) revert GameCannotBeSettled();
         // Can only settle a game with valid OO data
         if (!_dataExists(gameData.timestamp, gameData.ancillaryData)) revert DataDoesNotExist();
 

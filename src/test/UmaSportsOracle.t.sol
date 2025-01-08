@@ -7,6 +7,7 @@ import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
 import {IOptimisticOracleV2} from "src/interfaces/IOptimisticOracleV2.sol";
 
 import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
+import {IOptimisticOracleV2Mock} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {Ordering, GameData, GameState, MarketState, MarketType, MarketData} from "src/libraries/Structs.sol";
@@ -155,9 +156,11 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_createMarket_revert_InvalidLine() public {
-        vm.expectRevert(GameDoesNotExist.selector);
+        test_createGame();
+
+        vm.expectRevert(InvalidLine.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, 100);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
@@ -166,5 +169,109 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.expectRevert(MarketAlreadyCreated.selector);
         vm.prank(admin);
         oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+    }
+
+    function test_ready() public {
+        test_createGame();
+
+        assertFalse(oracle.ready(gameId));
+
+        // Mock OO hasPrice
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        assertTrue(oracle.ready(gameId));
+    }
+
+    function test_settleGame(uint32 home, uint32 away) public {
+        test_createGame();
+
+        int256 price = encodeScores(home, away, Ordering.HomeVsAway);
+        // Mock OO hasPrice and set the price
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
+
+        vm.expectEmit();
+        emit GameSettled(gameId, home, away);
+
+        vm.prank(admin);
+        oracle.settleGame(gameId);
+
+        // Assert the state post settlement
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+        assertEq(home, gameData.homeScore);
+        assertEq(away, gameData.awayScore);
+    }
+
+    function test_settleGameCanceled() public {
+        test_createGame();
+
+        // Set price to Cancel price accoring to the MULTIPLE_VALUES UMIP
+        int256 price = type(int256).max;
+        // Mock OO hasPrice and set the price
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
+
+        vm.expectEmit();
+        emit GameCanceled(gameId);
+
+        vm.prank(admin);
+        oracle.settleGame(gameId);
+
+        // Assert the state post settlement
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Canceled), uint8(gameData.state));
+        assertEq(uint32(0), gameData.homeScore);
+        assertEq(uint32(0), gameData.awayScore);
+    }
+
+    function test_settleGameIgnore() public {
+        test_createGame();
+
+        fastForward(2);
+
+        // Set price to Ignore price accoring to the MULTIPLE_VALUES UMIP
+        int256 price = type(int256).min;
+        // Mock OO hasPrice and set the price
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
+
+        // Deal the oracle some reward tokens to simulate the refund that occurs on dispute
+        deal(usdc, address(oracle), uint256(1_000_000));
+
+        vm.expectEmit();
+        emit GameReset(gameId);
+
+        vm.prank(admin);
+        oracle.settleGame(gameId);
+
+        uint256 timestamp = block.timestamp;
+
+        // Assert state post settlement
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Created), uint8(gameData.state));
+        assertEq(timestamp, gameData.timestamp);
+        assertEq(uint32(0), gameData.homeScore);
+        assertEq(uint32(0), gameData.awayScore);
+    }
+
+    function test_settleGame_revert_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.settleGame(gameId);
+    }
+
+    function test_settleGame_revert_GameCannotBeSettled() public {
+        test_settleGame(132, 100);
+        vm.expectRevert(GameCannotBeSettled.selector);
+        vm.prank(admin);
+        oracle.settleGame(gameId);
+    }
+
+    function test_settleGame_revert_DataDoesNotExist() public {
+        test_createGame();
+        vm.expectRevert(DataDoesNotExist.selector);
+
+        vm.prank(admin);
+        oracle.settleGame(gameId);
     }
 }

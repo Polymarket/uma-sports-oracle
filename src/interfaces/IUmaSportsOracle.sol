@@ -14,7 +14,7 @@ interface IUmaSportsOracleEE {
     error InvalidLine();
     error InvalidBond();
 
-    error GameInInvalidSettleState();
+    error GameCannotBeSettled();
     error DataDoesNotExist();
 
     error Paused();
