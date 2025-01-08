@@ -1,13 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-library ScoreDecoderLib {
-    uint256 constant HOME_INDEX = 224;
-    uint256 constant AWAY_INDEX = 192;
+import {Ordering} from "./Structs.sol";
 
-    function decodeScores(int256 data) internal pure returns (uint32 home, uint32 away) {
-        home = uint32(uint256(data >> HOME_INDEX));
-        away = uint32(uint256(data >> AWAY_INDEX));
+library ScoreDecoderLib {
+    uint256 constant SCORE_A_SLOT = 192;
+    uint256 constant SCORE_B_SLOT = 160;
+
+    function decodeScores(Ordering ordering, int256 data) internal pure returns (uint32 home, uint32 away) {
+        if (ordering == Ordering.HomeVsAway) {
+            home = _getScore(data, SCORE_A_SLOT);
+            away = _getScore(data, SCORE_B_SLOT);
+        } else {
+            away = _getScore(data, SCORE_A_SLOT);
+            home = _getScore(data, SCORE_B_SLOT);
+        }
+
         return (home, away);
+    }
+
+    function _getScore(int256 data, uint256 slot) internal pure returns (uint32) {
+        return uint32(uint256(data >> slot));
     }
 }

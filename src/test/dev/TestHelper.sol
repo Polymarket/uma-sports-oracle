@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "lib/forge-std/src/Test.sol";
+import {Ordering} from "src/libraries/Structs.sol";
 
 abstract contract TestHelper is Test {
     address public alice;
@@ -24,5 +25,12 @@ abstract contract TestHelper is Test {
         uint256 tsDelta = 12 * blockNumberDelta;
         vm.roll(block.number + blockNumberDelta);
         vm.warp(block.timestamp + tsDelta);
+    }
+
+    function encodeScores(uint32 home, uint32 away, Ordering ordering) internal pure returns (int256) {
+        if (ordering == Ordering.HomeVsAway) {
+            return int256(uint256(0)) << 224 | int256(uint256(home)) << 192 | int256(uint256(away)) << 160;
+        }
+        return int256(uint256(0)) << 224 | int256(uint256(away)) << 192 | int256(uint256(home)) << 160;
     }
 }

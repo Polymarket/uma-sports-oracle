@@ -38,7 +38,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     uint256 public constant EMERGENCY_SAFETY_PERIOD = 2 days;
 
     /// @notice Unique query identifier for the Optimistic Oracle
-    bytes32 public constant ORACLE_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
+    bytes32 public constant OO_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
 
     // TODO: replace CTF module with just functions on the oracle?
 
@@ -293,7 +293,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         }
 
         // Send a request to the Optimistic oracle
-        optimisticOracle.requestPrice(ORACLE_IDENTIFIER, timestamp, data, IERC20(token), reward);
+        optimisticOracle.requestPrice(OO_IDENTIFIER, timestamp, data, IERC20(token), reward);
 
         // Ensure that request is event based
         // Event based ensures that:
@@ -301,17 +301,17 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         // 2. The proposer cannot propose the ignorePrice value in the proposer/dispute flow
         // 3. RefundOnDispute is automatically set, meaning disputes trigger the reward to be refunded
         // Meaning, the only way to get the ignore price value is through the DVM i.e through a dispute
-        optimisticOracle.setEventBased(ORACLE_IDENTIFIER, timestamp, data);
+        optimisticOracle.setEventBased(OO_IDENTIFIER, timestamp, data);
 
         // Update the bond on the OO
-        if (bond > 0) optimisticOracle.setBond(ORACLE_IDENTIFIER, timestamp, data, bond);
-        if (liveness > 0) optimisticOracle.setCustomLiveness(ORACLE_IDENTIFIER, timestamp, data, liveness);
+        if (bond > 0) optimisticOracle.setBond(OO_IDENTIFIER, timestamp, data, bond);
+        if (liveness > 0) optimisticOracle.setCustomLiveness(OO_IDENTIFIER, timestamp, data, liveness);
     }
 
     // TODO: natspec
     function _settle(bytes32 gameId, GameData storage gameData) internal {
         // Get the data from the OO
-        int256 data = optimisticOracle.settleAndGetPrice(ORACLE_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
+        int256 data = optimisticOracle.settleAndGetPrice(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
 
         // If cancelled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
@@ -319,7 +319,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         if (_isIgnore(data)) return _resetGame(gameId, gameData);
 
         // Decode the scores from the OO data and set them in storage
-        (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(data);
+        (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(gameData.ordering, data);
 
         gameData.homeScore = home;
         gameData.awayScore = away;
@@ -368,9 +368,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     }
 
     function _dataExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
-        return optimisticOracle.hasPrice(address(this), ORACLE_IDENTIFIER, requestTimestamp, ancillaryData);
+        return optimisticOracle.hasPrice(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
+    // TODO: umip description
     function _isCanceled(int256 data) internal pure returns (bool) {
         return data == type(int256).max;
     }
