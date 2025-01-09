@@ -6,7 +6,6 @@ import {Ordering, Underdog, MarketType} from "src/libraries/Structs.sol";
 import {PayoutLib} from "src/libraries/PayoutLib.sol";
 
 contract PayoutLibTest is TestHelper {
-
     function testConstructCanceledPayouts(uint8 _ordering, uint8 _marketType) public {
         _ordering = uint8(bound(_ordering, 0, 1));
         Ordering ordering = Ordering(_ordering);
@@ -24,7 +23,7 @@ contract PayoutLibTest is TestHelper {
         // TODO
     }
 
-    function testConstructWinnerDrawPayouts(uint32 home, uint32 away, uint8 _ordering) public  {
+    function testConstructWinnerDrawPayouts(uint32 home, uint32 away, uint8 _ordering) public {
         _ordering = uint8(bound(_ordering, 0, 1));
         Ordering ordering = Ordering(_ordering);
 
@@ -45,7 +44,5 @@ contract PayoutLibTest is TestHelper {
         // TODO
     }
 
-    function testConstructPayouts() public {
-
-    }
+    function testConstructPayouts() public {}
 }
