@@ -6,7 +6,7 @@ import {Ordering} from "src/libraries/Structs.sol";
 import {ScoreDecoderLib} from "src/libraries/ScoreDecoderLib.sol";
 
 contract ScoreDecoderLibTest is TestHelper {
-    function testDecodeScores(uint32 home, uint32 away, uint8 _ordering) public pure {
+    function test_decodeScores(uint32 home, uint32 away, uint8 _ordering) public pure {
         _ordering = uint8(bound(_ordering, 0, 1));
         Ordering ordering = Ordering(_ordering);
 
