@@ -2,15 +2,16 @@
 pragma solidity ^0.8.27;
 
 import {Auth} from "./modules/Auth.sol";
-import {ConditionalTokensModule} from "./modules/ConditionalTokensModule.sol";
 
+import {PayoutLib} from "./libraries/PayoutLib.sol";
 import {ScoreDecoderLib} from "./libraries/ScoreDecoderLib.sol";
 import {AncillaryDataLib} from "./libraries/AncillaryDataLib.sol";
-import {Ordering, MarketType, MarketData, MarketState, GameState, GameData} from "./libraries/Structs.sol";
+import {Ordering, MarketType, MarketData, MarketState, GameState, GameData, Underdog} from "./libraries/Structs.sol";
 
 import {IFinder} from "./interfaces/IFinder.sol";
 import {IUmaSportsOracle} from "./interfaces/IUmaSportsOracle.sol";
 import {IAddressWhitelist} from "./interfaces/IAddressWhitelist.sol";
+import {IConditionalTokens} from "./interfaces/IConditionalTokens.sol";
 import {IOptimisticOracleV2} from "./interfaces/IOptimisticOracleV2.sol";
 
 import {ERC20, SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
@@ -19,10 +20,13 @@ import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.so
 /// @title UmaSportsOracle
 /// @notice Oracle contract for Sports games
 /// @author Jon Amenechi (jon@polymarket.com)
-contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
+contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /*///////////////////////////////////////////////////////////////////
                             IMMUTABLES 
     //////////////////////////////////////////////////////////////////*/
+
+    /// @notice Conditional Tokens Framework
+    IConditionalTokens public immutable ctf;
 
     /// @notice Optimistic Oracle
     IOptimisticOracleV2 public immutable optimisticOracle;
@@ -53,7 +57,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     mapping(bytes32 => MarketData) public markets;
 
     // TODO: is the finder really necessary?
-    constructor(address _ctf, address _finder) ConditionalTokensModule(_ctf) {
+    constructor(address _ctf, address _finder) {
+        ctf = IConditionalTokens(_ctf);
         IFinder finder = IFinder(_finder);
         optimisticOracle = IOptimisticOracleV2(finder.getImplementationAddress("OptimisticOracleV2"));
         addressWhitelist = IAddressWhitelist(finder.getImplementationAddress("CollateralWhitelist"));
@@ -106,9 +111,23 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     /// @dev Creates the underlying CTF market based on the marketId
     /// @param gameId       - The unique Id of a Game to be linked to the Market
     /// @param marketType   - The marketType of the Market
-    /// @param line         - The line of the Market. 0 if the marketType is type Winner
-    function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId) {
+    /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
+    /// @param line         - The line of the Market. Unused for Winner markets
+    /// @dev For Spread Markets, the line given should be the lower bound.
+    /// @dev E.g For a spread of 2.5, line = 2.
+    function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
+        external
+        returns (bytes32 marketId)
+    {
         GameData storage gameData = games[gameId];
+
+        // TODO: can use a bytes32 to encode the favorite/underdog and the line together
+        // line can easily be a uint8, say uint16 to be super safe. Next byte can be favorite
+        // favorite/underdog is just a 0 or 1, to represent Home or Away
+        // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
+        // MarketData.LineParams, MarketLines
+
+        // TODO 2: the underdog/favorite should be per game NOT per market
 
         // Validate that the Game exists
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
@@ -127,7 +146,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         if (isMarketCreated(marketId)) revert MarketAlreadyCreated();
 
         // Store the Market
-        _saveMarket(marketId, gameId, line, marketType);
+        _saveMarket(marketId, gameId, line, underdog, marketType);
 
         // Create the underlying CTF market
         bytes32 conditionId = _prepareMarket(marketId, marketType);
@@ -156,7 +175,19 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
     /// @notice Resolves a Market using the scores of a Settled Game
     /// @param marketId -   The unique marketId
     function resolveMarket(bytes32 marketId) external {
-        // TODO
+        MarketData storage marketData = markets[marketId];
+        // Ensure the Market exists
+        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+
+        GameData storage gameData = games[marketData.gameId];
+
+        // Ensure the Game is settled or canceled
+        if (gameData.state == GameState.Settled || gameData.state == GameState.Canceled) {
+            revert GameNotSettledOrCanceled();
+        }
+
+        // Resolve the Market
+        _resolve(marketId, gameData, marketData);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -228,6 +259,23 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
                             INTERNAL 
     //////////////////////////////////////////////////////////////////*/
 
+    /// @notice Prepare a new Condition on the CTF
+    /// @dev The marketId will be used as the questionID
+    /// @param marketId     - The unique MarketId
+    /// @param marketType   - The market type
+    function _prepareMarket(bytes32 marketId, MarketType marketType) internal returns (bytes32) {
+        if (marketType == MarketType.WinnerDraw) {
+            return _prepareByOutcomeCount(marketId, 3);
+        }
+        return _prepareByOutcomeCount(marketId, 2);
+    }
+
+    function _prepareByOutcomeCount(bytes32 marketId, uint256 outcomeCount) internal returns (bytes32) {
+        ctf.prepareCondition(address(this), marketId, outcomeCount);
+        // TODO: do we really need the conditionId?
+        return keccak256(abi.encodePacked(address(this), marketId, outcomeCount));
+    }
+
     /// @notice Saves Game Data
     /// @param creator          - Address of the creator
     /// @param timestamp        - Timestamp used in the OO request
@@ -262,8 +310,16 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         });
     }
 
-    function _saveMarket(bytes32 marketId, bytes32 gameId, uint256 line, MarketType marketType) internal {
-        markets[marketId] = MarketData({gameId: gameId, line: line, marketType: marketType, state: MarketState.Created});
+    function _saveMarket(bytes32 marketId, bytes32 gameId, uint256 line, Underdog underdog, MarketType marketType)
+        internal
+    {
+        markets[marketId] = MarketData({
+            gameId: gameId,
+            line: line,
+            underdog: underdog,
+            marketType: marketType,
+            state: MarketState.Created
+        });
     }
 
     /// @notice Request data from the OO
@@ -334,7 +390,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         emit GameSettled(gameId, home, away);
     }
 
-    // TODO: natspec
     function _cancelGame(bytes32 gameId, GameData storage gameData) internal {
         gameData.state = GameState.Canceled;
         emit GameCanceled(gameId);
@@ -358,6 +413,40 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth, ConditionalTokensModule {
         );
 
         emit GameReset(gameId);
+    }
+
+    function _resolve(bytes32 marketId, GameData storage gameData, MarketData storage marketData) internal {
+        uint256[] memory payouts = PayoutLib.constructPayouts(
+            gameData.state,
+            marketData.marketType,
+            gameData.ordering,
+            gameData.homeScore,
+            gameData.awayScore,
+            marketData.line,
+            marketData.underdog
+        );
+
+        // TODO: too many vars in construct payouts. Why not just pass the gameData and marketData vars directly?
+
+        ctf.reportPayouts(marketId, payouts);
+
+        emit MarketResolved(marketId, payouts);
+    }
+
+    function _resolveCanceledMarket(GameData storage gameData, MarketData storage marketData) internal {
+        // TODO
+    }
+
+    function _resolveWinnerDrawMarket(GameData storage gameData, MarketData storage marketData) internal {
+        // TODO
+    }
+
+    function _resolveSpreadsMarket(GameData storage gameData, MarketData storage marketData) internal {
+        // TODO
+    }
+
+    function _resolveTotalsMarket(GameData storage gameData, MarketData storage marketData) internal {
+        // TODO
     }
 
     function _isGameCreated(GameData storage gameData) internal view returns (bool) {

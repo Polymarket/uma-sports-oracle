@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.27;
+
+import {Ordering, MarketData, MarketType, GameState, GameData, Underdog} from "./Structs.sol";
+
+library PayoutLib {
+    /// @notice Generate a payout array for the Market, given its state, market type, ordering and line
+    /// @param marketType   - The market type
+    /// @param ordering     - The Game's ordering, HomeVsAway or AwayVsHome
+    /// @param home         - The score of the Home team
+    /// @param away         - The score of the Away team
+    function constructPayouts(
+        GameState state,
+        MarketType marketType,
+        Ordering ordering,
+        uint32 home,
+        uint32 away,
+        uint256 line,
+        Underdog underdog
+    ) internal pure returns (uint256[] memory) {
+        // Canceled games always get resolved to 50/50(or 33/33/33 in the case of WinnerDraw markets)
+        if (state == GameState.Canceled) {
+            return _constructCanceledPayouts(marketType);
+        }
+
+        if (marketType == MarketType.WinnerBinary) {
+            return _constructWinnerBinaryPayouts(ordering, home, away);
+        }
+        if (marketType == MarketType.WinnerDraw) {
+            return _constructWinnerDrawPayouts(ordering, home, away);
+        }
+        if (marketType == MarketType.Spreads) {
+            return _constructSpreadsPayouts(ordering, home, away, line, underdog);
+        }
+        return _constructTotalsPayouts(ordering, home, away, line, underdog);
+    }
+
+    function _constructCanceledPayouts(MarketType marketType) internal pure returns (uint256[] memory) {
+        uint256[] memory payouts;
+        if (marketType == MarketType.WinnerDraw) {
+            // Winner Draw markets have 3 outcomes. If canceled, resolve with [1,1,1]
+            payouts = new uint256[](3);
+            payouts[0] = 1;
+            payouts[1] = 1;
+            payouts[2] = 1;
+        } else {
+            // Resolve Winner Binary, Spreads and Totals Markets with [1,1]
+            payouts = new uint256[](2);
+            payouts[0] = 1;
+            payouts[1] = 1;
+        }
+        return payouts;
+    }
+
+    function _constructWinnerBinaryPayouts(Ordering ordering, uint32 home, uint32 away)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
+        uint256[] memory payouts = new uint256[](2);
+        if (home == away) {
+            // Draw, [1, 1]
+            payouts[0] = 1;
+            payouts[1] = 1;
+            return payouts;
+        }
+
+        // For a Market with a Home vs Away ordering
+        if (ordering == Ordering.HomeVsAway) {
+            if (home > away) {
+                // Home Win, [1, 0]
+                payouts[0] = 1;
+                payouts[1] = 0;
+            }
+            if (away > home) {
+                // Away Win, [0, 1]
+                payouts[0] = 0;
+                payouts[1] = 1;
+            }
+        } else {
+            // Away Ordering
+            if (home > away) {
+                // Home Win, [0, 1]
+                payouts[0] = 0;
+                payouts[1] = 1;
+            }
+            if (away > home) {
+                // Away Win, [1, 0]
+                payouts[0] = 1;
+                payouts[1] = 0;
+            }
+        }
+        return payouts;
+    }
+
+    function _constructWinnerDrawPayouts(Ordering ordering, uint32 home, uint32 away)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
+        uint256[] memory payouts = new uint256[](3);
+
+        if (home == away) {
+            // Draw Win, [0, 1, 0]
+            payouts[0] = 0;
+            payouts[1] = 1;
+            payouts[2] = 0;
+            return payouts;
+        }
+
+        // For a Market with a Home vs Away ordering
+        if (ordering == Ordering.HomeVsAway) {
+            if (home > away) {
+                // Home Win, [1, 0, 0]
+                payouts[0] = 1;
+                payouts[1] = 0;
+                payouts[2] = 0;
+            }
+            if (away > home) {
+                // Away Win, [0, 0, 1]
+                payouts[0] = 0;
+                payouts[1] = 0;
+                payouts[2] = 1;
+            }
+        } else {
+            // Away Ordering
+            if (home > away) {
+                // Home Win, [0, 0, 1]
+                payouts[0] = 0;
+                payouts[1] = 0;
+                payouts[2] = 1;
+            }
+            if (away > home) {
+                // Away Win, [1, 0, 0]
+                payouts[0] = 1;
+                payouts[1] = 0;
+                payouts[2] = 0;
+            }
+        }
+        return payouts;
+    }
+
+    function _constructSpreadsPayouts(Ordering ordering, uint32 home, uint32 away, uint256 line, Underdog underdog)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
+        uint256[] memory payouts = new uint256[](2);
+
+        // Calculate the spread between the scores
+        uint256 spread;
+
+        // The underdog must win the game OR lose by the line or less to win
+        if (underdog == Underdog.Home) {
+            if (home > away) spread = home - away;
+            // TODO
+        } else {
+            if (away > home) spread = away - home;
+        }
+
+        return payouts;
+    }
+
+    function _constructTotalsPayouts(Ordering ordering, uint32 home, uint32 away, uint256 line, Underdog underdog)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
+        uint256[] memory payouts = new uint256[](2);
+
+        // TODO
+        return payouts;
+    }
+}

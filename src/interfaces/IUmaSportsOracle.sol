@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {MarketType, GameData, MarketData, Ordering} from "../libraries/Structs.sol";
+import {MarketType, GameData, MarketData, Ordering, Underdog} from "../libraries/Structs.sol";
 
 interface IUmaSportsOracleEE {
     error UnsupportedToken();
@@ -10,12 +10,15 @@ interface IUmaSportsOracleEE {
     error GameDoesNotExist();
 
     error MarketAlreadyCreated();
+    error MarketDoesNotExist();
     error InvalidGame();
     error InvalidLine();
     error InvalidBond();
 
     error GameCannotBeSettled();
     error DataDoesNotExist();
+
+    error GameNotSettledOrCanceled();
 
     error Paused();
 
@@ -68,7 +71,9 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
         uint256 liveness
     ) external returns (bytes32);
 
-    function createMarket(bytes32 gameId, MarketType marketType, uint256 line) external returns (bytes32 marketId);
+    function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
+        external
+        returns (bytes32 marketId);
 
     function settleGame(bytes32 gameId) external;
 

@@ -52,6 +52,17 @@ enum MarketType {
     Totals
 }
 
+enum Underdog {
+    Home,
+    Away
+}
+
+// TODO: use this vs multiple args?
+struct LineParams {
+    Underdog underdog;
+    uint256 line;
+}
+
 enum MarketState {
     Created,
     Resolved,
@@ -64,4 +75,5 @@ struct MarketData {
     MarketState state; // The current State of the Market
     MarketType marketType; // The market type, used for determining resolution
     uint256 line; // The Line of the Market, used for spreads and totals, 0 for Winner markets
+    Underdog underdog; // The Team expected to lose the Market, unused for Winner markets
 }

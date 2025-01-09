@@ -10,7 +10,7 @@ import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
 import {IOptimisticOracleV2Mock} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
-import {Ordering, GameData, GameState, MarketState, MarketType, MarketData} from "src/libraries/Structs.sol";
+import {Ordering, GameData, GameState, MarketState, MarketType, MarketData, Underdog} from "src/libraries/Structs.sol";
 
 contract UmaSportsOracleTest is OracleSetup {
     function testSetup() public view {
@@ -106,7 +106,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, line);
+        oracle.createMarket(gameId, marketType, Underdog.Home, line);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -139,7 +139,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, _line);
+        oracle.createMarket(gameId, marketType, Underdog.Home, _line);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -152,7 +152,7 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_createMarket_revert_GameDoesNotExist() public {
         vm.expectRevert(GameDoesNotExist.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
     }
 
     function test_createMarket_revert_InvalidLine() public {
@@ -160,7 +160,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidLine.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, 100);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 100);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
@@ -168,7 +168,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(MarketAlreadyCreated.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, 0);
+        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
     }
 
     function test_ready() public {
