@@ -127,8 +127,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
         // MarketData.LineParams, MarketLines
 
-        // TODO 2: the underdog/favorite should be per game NOT per market
-
         // Validate that the Game exists
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
@@ -416,6 +414,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     function _resolve(bytes32 marketId, GameData storage gameData, MarketData storage marketData) internal {
+        // TODO: too many vars in construct payouts. Why not just pass the gameData and marketData vars directly?
         uint256[] memory payouts = PayoutLib.constructPayouts(
             gameData.state,
             marketData.marketType,
@@ -426,27 +425,12 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
             marketData.underdog
         );
 
-        // TODO: too many vars in construct payouts. Why not just pass the gameData and marketData vars directly?
+        // Set State to Resolved
+        marketData.state = MarketState.Resolved;
 
         ctf.reportPayouts(marketId, payouts);
 
         emit MarketResolved(marketId, payouts);
-    }
-
-    function _resolveCanceledMarket(GameData storage gameData, MarketData storage marketData) internal {
-        // TODO
-    }
-
-    function _resolveWinnerDrawMarket(GameData storage gameData, MarketData storage marketData) internal {
-        // TODO
-    }
-
-    function _resolveSpreadsMarket(GameData storage gameData, MarketData storage marketData) internal {
-        // TODO
-    }
-
-    function _resolveTotalsMarket(GameData storage gameData, MarketData storage marketData) internal {
-        // TODO
     }
 
     function _isGameCreated(GameData storage gameData) internal view returns (bool) {

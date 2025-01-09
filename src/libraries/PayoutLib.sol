@@ -140,6 +140,7 @@ library PayoutLib {
         return payouts;
     }
 
+    /// @notice Construct a payout vector based for Spread Markets
     function _constructSpreadsPayouts(Ordering ordering, uint32 home, uint32 away, uint256 line, Underdog underdog)
         internal
         pure
@@ -147,15 +148,93 @@ library PayoutLib {
     {
         uint256[] memory payouts = new uint256[](2);
 
-        // Calculate the spread between the scores
         uint256 spread;
 
-        // The underdog must win the game OR lose by the line or less to win
+        // Spread invariant: Underdog must win the game OR lose by the line or less to win
+        // TODO: simplify
         if (underdog == Underdog.Home) {
-            if (home > away) spread = home - away;
-            // TODO
+            // Underdog is Home and Home won
+            if (home > away) {
+                // Home won
+                if (ordering == Ordering.HomeVsAway) {
+                    // Home Win [1,0]
+                    payouts[0] = 1;
+                    payouts[1] = 0;
+                } else {
+                    // Home Win [0,1]
+                    payouts[0] = 0;
+                    payouts[1] = 1;
+                }
+            } else {
+                // Underdog is Home and Home lost
+                // The underdog must lose by less than the line to win else Away wins
+                spread = away - home;
+                if (spread < line) {
+                    // spread < line for Home, indicating a Home win
+                    if (ordering == Ordering.HomeVsAway) {
+                        // Home Win [1,0]
+                        payouts[0] = 1;
+                        payouts[1] = 0;
+                    } else {
+                        // Home Win [0,1]
+                        payouts[0] = 0;
+                        payouts[1] = 1;
+                    }
+                } else {
+                    // spread >= line for Underdog Home, indicating an Away win
+                    if (ordering == Ordering.HomeVsAway) {
+                        // Away Win [0,1]
+                        payouts[0] = 0;
+                        payouts[1] = 1;
+                    } else {
+                        // Away Win [1,0]
+                        payouts[0] = 1;
+                        payouts[1] = 0;
+                    }
+                }
+            }
         } else {
-            if (away > home) spread = away - home;
+            // Underdog is Away
+            // || away - home < line
+            if (away > home) {
+                // Underdog is Away and Away won
+                if (ordering == Ordering.HomeVsAway) {
+                    // Away Win, Home vs Away [0,1]
+                    payouts[0] = 0;
+                    payouts[1] = 1;
+                } else {
+                    // Away Win, Away vs Home [1,0]
+                    payouts[0] = 1;
+                    payouts[1] = 0;
+                }
+            } else {
+                // Underdog is Away and Away lost
+                // The underdog must lose by less than the line to win else Home wins
+                spread = home - away;
+                if (spread < line) {
+                    // spread < line for Away, indicating an Away win
+                    if (ordering == Ordering.HomeVsAway) {
+                        // Away Win, Home vs Away [0,1]
+                        payouts[0] = 0;
+                        payouts[1] = 1;
+                    } else {
+                        // Away Win, Away vs Home [1,0]
+                        payouts[0] = 1;
+                        payouts[1] = 0;
+                    }
+                } else {
+                    // spread >= line for Underdog Away, indicating a Home win
+                    if (ordering == Ordering.HomeVsAway) {
+                        // Home Win, Home vs Away [1,0]
+                        payouts[0] = 1;
+                        payouts[1] = 0;
+                    } else {
+                        // Home Win, Away vs Home [0,1]
+                        payouts[0] = 0;
+                        payouts[1] = 1;
+                    }
+                }
+            }
         }
 
         return payouts;
