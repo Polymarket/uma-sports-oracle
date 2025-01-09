@@ -44,8 +44,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Unique query identifier for the Optimistic Oracle
     bytes32 public constant OO_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
 
-    // TODO: replace CTF module with just functions on the oracle?
-
     /*///////////////////////////////////////////////////////////////////
                             STATE 
     //////////////////////////////////////////////////////////////////*/
@@ -56,7 +54,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Mapping of marketId to Markets
     mapping(bytes32 => MarketData) public markets;
 
-    // TODO: is the finder really necessary?
     constructor(address _ctf, address _finder) {
         ctf = IConditionalTokens(_ctf);
         IFinder finder = IFinder(_finder);
@@ -368,7 +365,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         if (liveness > 0) optimisticOracle.setCustomLiveness(OO_IDENTIFIER, timestamp, data, liveness);
     }
 
-    // TODO: natspec
+    /// @notice Settles a Game
+    /// @param gameId       - The unique gameId
+    /// @param gameData     - The gameData in storage
     function _settle(bytes32 gameId, GameData storage gameData) internal {
         // Get the data from the OO
         int256 data = optimisticOracle.settleAndGetPrice(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
@@ -393,6 +392,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit GameCanceled(gameId);
     }
 
+    /// @notice Resets a Game by sending a new request to the OO
+    /// @dev We pay for this new request using the refunded reward that occurs on dispute
+    /// @param gameId       - The unique gameId
+    /// @param gameData     - The GameData in storage
     function _resetGame(bytes32 gameId, GameData storage gameData) internal {
         uint256 timestamp = block.timestamp;
 
@@ -413,6 +416,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit GameReset(gameId);
     }
 
+    /// @notice Resolves a market
+    /// TODO: params
     function _resolve(bytes32 marketId, GameData storage gameData, MarketData storage marketData) internal {
         // TODO: too many vars in construct payouts. Why not just pass the gameData and marketData vars directly?
         uint256[] memory payouts = PayoutLib.constructPayouts(
