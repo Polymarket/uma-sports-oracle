@@ -311,6 +311,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit MarketEmergencyResolved(marketId, payouts);
     }
 
+    // TODO: auth functions on updating bond/liveness
+
     /*///////////////////////////////////////////////////////////////////
                             INTERNAL 
     //////////////////////////////////////////////////////////////////*/
