@@ -238,7 +238,6 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.expectEmit();
         emit GameSettled(gameId, home, away);
 
-        vm.prank(admin);
         oracle.settleGame(gameId);
 
         // Assert the state post settlement
@@ -260,7 +259,6 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.expectEmit();
         emit GameCanceled(gameId);
 
-        vm.prank(admin);
         oracle.settleGame(gameId);
 
         // Assert the state post settlement
@@ -287,7 +285,6 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.expectEmit();
         emit GameReset(gameId);
 
-        vm.prank(admin);
         oracle.settleGame(gameId);
 
         uint256 timestamp = block.timestamp;
@@ -302,14 +299,12 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_settleGame_revert_GameDoesNotExist() public {
         vm.expectRevert(GameDoesNotExist.selector);
-        vm.prank(admin);
         oracle.settleGame(gameId);
     }
 
     function test_settleGame_revert_GameCannotBeSettled() public {
         test_settleGame(132, 100);
         vm.expectRevert(GameCannotBeSettled.selector);
-        vm.prank(admin);
         oracle.settleGame(gameId);
     }
 
@@ -317,7 +312,6 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
         vm.expectRevert(DataDoesNotExist.selector);
 
-        vm.prank(admin);
         oracle.settleGame(gameId);
     }
 
@@ -346,7 +340,6 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.expectEmit();
         emit MarketResolved(marketId, expectedPayouts);
 
-        vm.prank(admin);
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
