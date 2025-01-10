@@ -110,10 +110,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @param marketType   - The marketType of the Market
     /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
     /// @param line         - The line of the Market. Unused for Winner markets
-    /// @dev For Spread Markets, the line must be be the lower bound.
-    /// @dev E.g For a spread of 2.5, line = 2.
-    /// @dev For Totals Markets, the line must be the lower bound.
-    /// @dev E.g For a total of 218.5, line = 218.
+    /// @dev The line is always scaled by 10 ^ 6.
+    /// @dev For a Spread line of 2.5, line = 2_500_000
+    /// @dev For a Totals line of 218.5, line =  Markets, the line must be the lower bound.
+    /// @dev E.g For a total of 218.5, line = 218_500_000;
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         external
         returns (bytes32 marketId)
@@ -126,7 +126,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
         // MarketData.LineParams, MarketLines
 
-        // TODO: createWinnerBinaryMarket, createWinnerDrawMarket, createSpreadsMarket, createTotalsMarket
+        // Canceled games, spread markets construction makes sense to niraek
+        // TODO: talk to uma guys aabout canceled/delayed games, 50/50 invariant vs wait
+
+        // TODO: createWinnerMarket, createWinnerDrawMarket, createSpreadsMarket, createTotalsMarket
         // this keeps my function signature clean for the winner markets, just bytes32 for the winner market
         //
 
@@ -137,7 +140,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         if (gameData.state != GameState.Created) revert InvalidGame();
 
         // Validate the marketType and line
-        if (line > 0 && (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw)) {
+        if (line > 0 && (marketType == MarketType.Winner)) {
             revert InvalidLine();
         }
 
@@ -150,7 +153,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         _saveMarket(marketId, gameId, line, underdog, marketType);
 
         // Create the underlying CTF market
-        bytes32 conditionId = _prepareMarket(marketId, marketType);
+        bytes32 conditionId = _prepareMarket(marketId);
 
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
         return marketId;
@@ -186,8 +189,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         if (gameData.state != GameState.Settled && gameData.state != GameState.Canceled) {
             revert GameNotSettledOrCanceled();
         }
-
-        // TODO: do we want a delay before Markets can be resolved by a settled Game?
 
         // Resolve the Market
         _resolve(marketId, gameData, marketData);
@@ -265,18 +266,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Prepare a new Condition on the CTF
     /// @dev The marketId will be used as the questionID
     /// @param marketId     - The unique MarketId
-    /// @param marketType   - The market type
-    function _prepareMarket(bytes32 marketId, MarketType marketType) internal returns (bytes32) {
-        if (marketType == MarketType.WinnerDraw) {
-            return _prepareByOutcomeCount(marketId, 3);
-        }
-        return _prepareByOutcomeCount(marketId, 2);
-    }
-
-    function _prepareByOutcomeCount(bytes32 marketId, uint256 outcomeCount) internal returns (bytes32) {
-        ctf.prepareCondition(address(this), marketId, outcomeCount);
+    function _prepareMarket(bytes32 marketId) internal returns (bytes32) {
+        ctf.prepareCondition(address(this), marketId, uint256(2));
         // TODO: do we really need the conditionId?
-        return keccak256(abi.encodePacked(address(this), marketId, outcomeCount));
+        return keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
     }
 
     /// @notice Saves Game Data

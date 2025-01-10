@@ -9,65 +9,41 @@ import {PayoutLib} from "src/libraries/PayoutLib.sol";
 
 contract PayoutLibTest is TestHelper {
     function test_constructCanceledPayouts() public pure {
-        uint256[] memory payouts = PayoutLib._constructCanceledPayouts(MarketType.Spreads);
+        uint256[] memory payouts = PayoutLib._constructCanceledPayouts();
         // [1,1]
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(1), payouts[1]);
-
-        payouts = PayoutLib._constructCanceledPayouts(MarketType.WinnerDraw);
-        // [1,1,1]
-        assertEq(uint256(1), payouts[0]);
-        assertEq(uint256(1), payouts[1]);
-        assertEq(uint256(1), payouts[2]);
     }
 
-    function test_constructCanceledPayouts_fuzz(uint8 _marketType) public pure {
-        _marketType = uint8(bound(_marketType, 0, 3));
-        MarketType marketType = MarketType(_marketType);
-
-        uint256[] memory payouts = PayoutLib._constructCanceledPayouts(marketType);
-
-        if (marketType == MarketType.WinnerDraw) {
-            // [1,1,1]
-            assertEq(uint256(1), payouts[0]);
-            assertEq(uint256(1), payouts[1]);
-            assertEq(uint256(1), payouts[2]);
-        } else {
-            // [1,1]
-            assertEq(uint256(1), payouts[0]);
-            assertEq(uint256(1), payouts[1]);
-        }
-    }
-
-    function test_constructWinnerBinaryPayouts() public pure {
+    function test_constructWinnerPayouts() public pure {
         uint256[] memory payouts;
         // Home ordering, Home win [1,0]
-        payouts = PayoutLib._constructWinnerBinaryPayouts(Ordering.HomeVsAway, uint32(133), uint32(101));
+        payouts = PayoutLib._constructWinnerPayouts(Ordering.HomeVsAway, uint32(133), uint32(101));
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Home ordering, Away win [0,1]
-        payouts = PayoutLib._constructWinnerBinaryPayouts(Ordering.HomeVsAway, uint32(101), uint32(133));
+        payouts = PayoutLib._constructWinnerPayouts(Ordering.HomeVsAway, uint32(101), uint32(133));
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Away ordering, Home win [0,1]
-        payouts = PayoutLib._constructWinnerBinaryPayouts(Ordering.AwayVsHome, uint32(133), uint32(101));
+        payouts = PayoutLib._constructWinnerPayouts(Ordering.AwayVsHome, uint32(133), uint32(101));
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Away ordering, Away win [1,0]
-        payouts = PayoutLib._constructWinnerBinaryPayouts(Ordering.AwayVsHome, uint32(101), uint32(133));
+        payouts = PayoutLib._constructWinnerPayouts(Ordering.AwayVsHome, uint32(101), uint32(133));
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
     }
 
-    function test_constructWinnerBinaryPayouts_fuzz(uint32 home, uint32 away) public pure {
+    function test_constructWinnerPayouts_fuzz(uint32 home, uint32 away) public pure {
         uint256[] memory payouts;
 
         // HomeVsAway
         Ordering homeVAway = Ordering.HomeVsAway;
-        payouts = PayoutLib._constructWinnerBinaryPayouts(homeVAway, home, away);
+        payouts = PayoutLib._constructWinnerPayouts(homeVAway, home, away);
         if (home == away) {
             // [1,1]
             assertEq(uint256(1), payouts[0]);
@@ -87,7 +63,7 @@ contract PayoutLibTest is TestHelper {
 
         // AwayVsHome
         Ordering awayVsHome = Ordering.AwayVsHome;
-        payouts = PayoutLib._constructWinnerBinaryPayouts(awayVsHome, home, away);
+        payouts = PayoutLib._constructWinnerPayouts(awayVsHome, home, away);
 
         if (home == away) {
             // [1,1]
@@ -107,147 +83,67 @@ contract PayoutLibTest is TestHelper {
         }
     }
 
-    function test_constructWinnerDrawPayouts() public pure {
-        uint256[] memory payouts;
-        // Home ordering, Home win [1,0,0]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.HomeVsAway, uint32(133), uint32(101));
-        assertEq(uint256(1), payouts[0]);
-        assertEq(uint256(0), payouts[1]);
-        assertEq(uint256(0), payouts[2]);
-
-        // Home ordering, Away win [0,0,1]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.HomeVsAway, uint32(101), uint32(133));
-        assertEq(uint256(0), payouts[0]);
-        assertEq(uint256(0), payouts[1]);
-        assertEq(uint256(1), payouts[2]);
-
-        // Home ordering, Draw win [0,1,0]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.HomeVsAway, uint32(133), uint32(133));
-        assertEq(uint256(0), payouts[0]);
-        assertEq(uint256(1), payouts[1]);
-        assertEq(uint256(0), payouts[2]);
-
-        // Away ordering, Home win [0,0,1]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.AwayVsHome, uint32(133), uint32(101));
-        assertEq(uint256(0), payouts[0]);
-        assertEq(uint256(0), payouts[1]);
-        assertEq(uint256(1), payouts[2]);
-
-        // Away ordering, Away win [1,0,0]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.AwayVsHome, uint32(101), uint32(133));
-        assertEq(uint256(1), payouts[0]);
-        assertEq(uint256(0), payouts[1]);
-        assertEq(uint256(0), payouts[2]);
-
-        // Away ordering, Draw win [0,1,0]
-        payouts = PayoutLib._constructWinnerDrawPayouts(Ordering.AwayVsHome, uint32(133), uint32(133));
-        assertEq(uint256(0), payouts[0]);
-        assertEq(uint256(1), payouts[1]);
-        assertEq(uint256(0), payouts[2]);
-    }
-
-    function test_constructWinnerDrawPayouts_fuzz(uint32 home, uint32 away, uint8 _ordering) public pure {
-        _ordering = uint8(bound(_ordering, 0, 1));
-        Ordering ordering = Ordering(_ordering);
-
-        uint256[] memory payouts = PayoutLib._constructWinnerDrawPayouts(ordering, home, away);
-        if (home == away) {
-            // [0,1,0]
-            assertEq(uint256(0), payouts[0]);
-            assertEq(uint256(1), payouts[1]);
-            assertEq(uint256(0), payouts[2]);
-        }
-
-        if (home > away && ordering == Ordering.HomeVsAway) {
-            // [1,0,0]
-            assertEq(uint256(1), payouts[0]);
-            assertEq(uint256(0), payouts[1]);
-            assertEq(uint256(0), payouts[2]);
-        }
-
-        if (home > away && ordering == Ordering.AwayVsHome) {
-            // [0,0,1]
-            assertEq(uint256(0), payouts[0]);
-            assertEq(uint256(0), payouts[1]);
-            assertEq(uint256(1), payouts[2]);
-        }
-
-        if (away > home && ordering == Ordering.HomeVsAway) {
-            // [0,0,1]
-            assertEq(uint256(0), payouts[0]);
-            assertEq(uint256(0), payouts[1]);
-            assertEq(uint256(1), payouts[2]);
-        }
-
-        if (away > home && ordering == Ordering.AwayVsHome) {
-            // [1,0,0]
-            assertEq(uint256(1), payouts[0]);
-            assertEq(uint256(0), payouts[1]);
-            assertEq(uint256(0), payouts[2]);
-        }
-    }
-
     function test_constructSpreadsPayouts() public pure {
         uint256[] memory payouts;
         uint256 line = 15; // line of 15.5
 
         // Home ordering, Home underdog, Home win, Spread Market Home win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(133), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(133), uint32(101), line, Underdog.Home);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Home ordering, Home underdog, Home loses, spread <= line, Spread Market Home win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(90), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(90), uint32(101), line, Underdog.Home);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Home ordering, Home underdog, Home loses, spread > line, Spread Market Away win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(70), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(70), uint32(101), line, Underdog.Home);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Home ordering, Away underdog, Away win, Spread Market Away win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(133), line, Underdog.Away);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(133), line, Underdog.Away);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Home ordering, Away underdog, Away loses, spread <= line, Spread Market Away win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(90), line, Underdog.Away);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(90), line, Underdog.Away);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Home ordering, Away underdog, Away loses, spread > line, Spread Market Home win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(85), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(85), line, Underdog.Home);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Away ordering, Home underdog, Home win, Spread Market Home win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(133), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(133), uint32(101), line, Underdog.Home);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Away ordering, Home underdog, Home loses, spread <= line, Spread Market Home win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(90), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(90), uint32(101), line, Underdog.Home);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
 
         // Away ordering, Home underdog, Home loses, spread > line, Spread Market Away win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(70), uint32(101), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(70), uint32(101), line, Underdog.Home);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Away ordering, Away underdog, Away win, Spread Market Away win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(133), line, Underdog.Away);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(133), line, Underdog.Away);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Away ordering, Away underdog, Away loses, spread <= line, Spread Market Away win: [1,0]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(90), line, Underdog.Away);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(90), line, Underdog.Away);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
 
         // Away ordering, Away underdog, Away loses, spread > line, Spread Market Home win: [0,1]
-        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(85), line, Underdog.Home);
+        payouts = PayoutLib._constructSpreadsPayouts(uint32(101), uint32(85), line, Underdog.Home);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
     }
@@ -264,7 +160,7 @@ contract PayoutLibTest is TestHelper {
 
         vm.assume(line > 0 && line < 100);
 
-        uint256[] memory payouts = PayoutLib._constructSpreadsPayouts(ordering, home, away, line, underdog);
+        uint256[] memory payouts = PayoutLib._constructSpreadsPayouts(home, away, line, underdog);
 
         // Home ordering, Home underdog, Home win, Spread Market Home win: [1,0]
         if (ordering == Ordering.HomeVsAway && underdog == Underdog.Home && home > away) {

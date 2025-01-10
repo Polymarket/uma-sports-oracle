@@ -96,9 +96,9 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_createMarket_WinnerBinary() public {
+    function test_createMarket_Winner() public {
         test_createGame();
-        MarketType marketType = MarketType.WinnerBinary;
+        MarketType marketType = MarketType.Winner;
         uint256 line = 0;
 
         bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
@@ -115,7 +115,7 @@ contract UmaSportsOracleTest is OracleSetup {
         // Verify the Market's state post creation
         assertEq(gameId, marketData.gameId);
         assertEq(line, marketData.line);
-        assertEq(uint8(MarketType.WinnerBinary), uint8(marketData.marketType));
+        assertEq(uint8(MarketType.Winner), uint8(marketData.marketType));
         assertEq(uint8(MarketState.Created), uint8(marketData.state));
     }
 
@@ -168,17 +168,14 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_createMarket_fuzz(uint256 _line, uint8 _marketType) public {
         test_createGame();
 
-        _marketType = uint8(bound(_marketType, 0, 3));
+        _marketType = uint8(bound(_marketType, 0, 2));
         MarketType marketType = MarketType(_marketType);
 
-        if (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw) {
+        if (marketType == MarketType.Winner) {
             _line = 0;
         }
 
         uint256 outcomeCount = 2;
-        if (marketType == MarketType.WinnerDraw) {
-            outcomeCount = 3;
-        }
 
         bytes32 marketId = oracle.getMarketId(gameId, marketType, _line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
@@ -200,7 +197,7 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_createMarket_revert_GameDoesNotExist() public {
         vm.expectRevert(GameDoesNotExist.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
     }
 
     function test_createMarket_revert_InvalidLine() public {
@@ -208,15 +205,15 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidLine.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 100);
+        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 100);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
-        test_createMarket_WinnerBinary();
+        test_createMarket_Winner();
 
         vm.expectRevert(MarketAlreadyCreated.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
     }
 
     function test_ready() public {
@@ -317,7 +314,7 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.settleGame(gameId);
     }
 
-    function test_resolveMarket_WinnerBinary() public {
+    function test_resolveMarket_Winner() public {
         test_createGame();
 
         uint32 home = 133;
@@ -325,7 +322,7 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Create a Winner market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
 
         // Push score data to the OO
         IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
@@ -348,52 +345,11 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(0, marketData.line);
-        assertEq(uint8(MarketType.WinnerBinary), uint8(marketData.marketType));
+        assertEq(uint8(MarketType.Winner), uint8(marketData.marketType));
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
-        // payout denominator is set when condition is resolved
-        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
-    }
-
-    function test_resolveMarket_WinnerDraw() public {
-        test_createGame();
-
-        uint32 home = 133;
-        uint32 away = 101;
-        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
-
-        // Create a Winner market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerDraw, Underdog.Home, 0);
-
-        // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game
-        oracle.settleGame(gameId);
-
-        // Home win: [1,0,0]
-        uint256[] memory expectedPayouts = new uint256[](3);
-        expectedPayouts[0] = 1;
-        expectedPayouts[1] = 0;
-        expectedPayouts[2] = 0;
-
-        vm.expectEmit();
-        emit MarketResolved(marketId, expectedPayouts);
-
-        oracle.resolveMarket(marketId);
-
-        // Verify post resolution state
-        MarketData memory marketData = oracle.getMarket(marketId);
-        assertEq(gameId, marketData.gameId);
-        assertEq(0, marketData.line);
-        assertEq(uint8(MarketType.WinnerDraw), uint8(marketData.marketType));
-        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
-
-        // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(3)));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -483,7 +439,43 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_resolveMarket_Canceled() public {
-        // TODO
+        test_createGame();
+
+        uint32 home = 101;
+        uint32 away = 101;
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Create a market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        // Home win: [1,0,0]
+        uint256[] memory expectedPayouts = new uint256[](2);
+        expectedPayouts[0] = 1;
+        expectedPayouts[1] = 1;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, expectedPayouts);
+
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(0, marketData.line);
+        assertEq(uint8(MarketType.Winner), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        // payout denominator is set when condition is resolved
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
     function test_resolveMarket_revert_MarketDoesNotExist() public {
@@ -493,7 +485,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
         test_createGame();
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
 
         vm.expectRevert(GameNotSettledOrCanceled.selector);
         oracle.resolveMarket(marketId);
@@ -504,13 +496,13 @@ contract UmaSportsOracleTest is OracleSetup {
     {
         test_createGame();
 
-        _marketType = uint8(bound(_marketType, 0, 3));
+        _marketType = uint8(bound(_marketType, 0, 2));
         MarketType marketType = MarketType(_marketType);
 
         _underdog = uint8(bound(_underdog, 0, 1));
         Underdog underdog = Underdog(_underdog);
 
-        if (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw) {
+        if (marketType == MarketType.Winner) {
             line = 0;
         }
 
@@ -537,7 +529,6 @@ contract UmaSportsOracleTest is OracleSetup {
 
         // Assert conditional token state post resolution
         uint256 outcomeSlotCount = 2;
-        if (marketType == MarketType.WinnerDraw) outcomeSlotCount = 3;
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeSlotCount));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));

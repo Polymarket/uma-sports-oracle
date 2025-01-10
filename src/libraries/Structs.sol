@@ -46,8 +46,7 @@ struct GameData {
 }
 
 enum MarketType {
-    WinnerBinary,
-    WinnerDraw,
+    Winner,
     Spreads,
     Totals
 }
