@@ -38,9 +38,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
                             CONSTANTS 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Time period after which an admin can emergency resolve a Game or Market
-    uint256 public constant EMERGENCY_SAFETY_PERIOD = 2 days;
-
     /// @notice Unique query identifier for the Optimistic Oracle
     bytes32 public constant OO_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
 
@@ -240,31 +237,78 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
                             ADMIN 
     //////////////////////////////////////////////////////////////////*/
 
-    function pauseGame(bytes32) external onlyAdmin {
-        // TODO
-        // NOTE: Game can be in any state to be paused
+    /// @notice Pauses a Game
+    /// @dev Pausing a Game prevents it from settlement and allows it to be emergency settled
+    /// @param gameId - The unique game Id
+    function pauseGame(bytes32 gameId) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (gameData.state != GameState.Created) revert GameCannotBePaused();
+
+        gameData.state = GameState.Paused;
+        emit GamePaused(gameId);
     }
 
-    function unpauseGame(bytes32) external onlyAdmin {
-        // TODO
+    /// @notice Unpauses a Game
+    /// @param gameId - The unique game Id
+    function unpauseGame(bytes32 gameId) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (gameData.state != GameState.Paused) revert GameCannotBeUnpaused();
+        
+        gameData.state = GameState.Created;
+        emit GameUnpaused(gameId);
     }
 
-    function emergencySettleGame(bytes32) external onlyAdmin {
-        // TODO
-        // NOTE: Game must be in state Paused to be EmergencySettled
-        // correctly settled games can still be paused then emergency settled
+    function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (gameData.state != GameState.Paused) revert GameCannotBeEmergencySettled();
+
+        gameData.state = GameState.EmergencySettled;
+        gameData.homeScore = home;
+        gameData.awayScore = away;
+        
+        emit GameEmergencySettled(gameId, home, away);
     }
 
-    function pauseMarket(bytes32) external onlyAdmin {
-        // TODO
+    function pauseMarket(bytes32 marketId) external onlyAdmin {
+        // TODO: natspec
+        MarketData storage marketData = markets[marketId];
+
+        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (marketData.state != MarketState.Created) revert MarketCannotBePaused();
+
+        marketData.state = MarketState.Paused;
+        emit MarketPaused(marketId);
     }
 
-    function unpauseMarket(bytes32) external onlyAdmin {
-        // TODO
+    function unpauseMarket(bytes32 marketId) external onlyAdmin {
+        // TODO: natspec
+        MarketData storage marketData = markets[marketId];
+
+        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (marketData.state != MarketState.Paused) revert MarketCannotBeUnpaused();
+
+        marketData.state = MarketState.Created;
+        emit MarketUnpaused(marketId);
     }
 
-    function emergencyResolveMarket(bytes32) external onlyAdmin {
-        // TODO
+    function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
+        // TODO: natspec
+        MarketData storage marketData = markets[marketId];
+        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+
+        if (marketData.state != MarketState.Paused) revert MarketCannotBeEmergencyResolved();
+
+        marketData.state = MarketState.EmergencyResolved;
+
+        _reportPayouts(marketId, payouts);
+
+        emit MarketEmergencyResolved(marketId, payouts);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -278,6 +322,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         ctf.prepareCondition(address(this), marketId, uint256(2));
         // TODO: do we really need the conditionId?
         return keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+    }
+
+    function _reportPayouts(bytes32 marketId, uint256[] memory payouts) internal {
+        ctf.reportPayouts(marketId, payouts);
     }
 
     /// @notice Saves Game Data
@@ -442,7 +490,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // Set State to Resolved
         marketData.state = MarketState.Resolved;
 
-        ctf.reportPayouts(marketId, payouts);
+        _reportPayouts(marketId, payouts);
 
         emit MarketResolved(marketId, payouts);
     }
