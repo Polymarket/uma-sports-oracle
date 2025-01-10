@@ -257,7 +257,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Paused) revert GameCannotBeUnpaused();
-        
+
         gameData.state = GameState.Created;
         emit GameUnpaused(gameId);
     }
@@ -271,7 +271,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         gameData.state = GameState.EmergencySettled;
         gameData.homeScore = home;
         gameData.awayScore = away;
-        
+
         emit GameEmergencySettled(gameId, home, away);
     }
 
