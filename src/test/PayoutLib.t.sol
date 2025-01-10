@@ -172,7 +172,7 @@ contract PayoutLibTest is TestHelper {
         payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(70), uint32(101), line, Underdog.Home);
         assertEq(uint256(0), payouts[0]);
         assertEq(uint256(1), payouts[1]);
-        
+
         // Home ordering, Away underdog, Away win, Spread Market Away win: [0,1]
         payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(133), line, Underdog.Away);
         assertEq(uint256(0), payouts[0]);
@@ -202,7 +202,7 @@ contract PayoutLibTest is TestHelper {
         payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(70), uint32(101), line, Underdog.Home);
         assertEq(uint256(1), payouts[0]);
         assertEq(uint256(0), payouts[1]);
-        
+
         // Away ordering, Away underdog, Away win, Spread Market Away win: [1,0]
         payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(133), line, Underdog.Away);
         assertEq(uint256(1), payouts[0]);
