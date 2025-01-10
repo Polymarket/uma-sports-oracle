@@ -108,7 +108,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, Underdog.Home, line);
+        oracle.createWinnerMarket(gameId);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -133,7 +133,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, Underdog.Home, line);
+        oracle.createSpreadsMarket(gameId, Underdog.Home, line);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -156,7 +156,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, Underdog.Home, line);
+        oracle.createTotalsMarket(gameId, Underdog.Home, line);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -203,7 +203,7 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_createMarket_revert_GameDoesNotExist() public {
         vm.expectRevert(GameDoesNotExist.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        oracle.createWinnerMarket(gameId);
     }
 
     function test_createMarket_revert_InvalidLine() public {
@@ -219,7 +219,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(MarketAlreadyCreated.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        oracle.createWinnerMarket(gameId);
     }
 
     function test_ready() public {
@@ -328,7 +328,7 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Create a Winner market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
 
         // Push score data to the OO
         IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
@@ -368,7 +368,7 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 line = 15_500_000;
 
         // Create a Spreads market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.Spreads, Underdog.Home, line);
+        bytes32 marketId = oracle.createSpreadsMarket(gameId, Underdog.Home, line);
 
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
@@ -409,8 +409,8 @@ contract UmaSportsOracleTest is OracleSetup {
         uint32 away = 140;
         uint256 line = 300_500_000;
 
-        // Create a Spreads market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.Totals, Underdog.Home, line);
+        // Create a Totals market on the Game
+        bytes32 marketId = oracle.createTotalsMarket(gameId, Underdog.Home, line);
 
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
@@ -452,7 +452,7 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Create a market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
 
         // Push score data to the OO
         IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
@@ -491,7 +491,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
         test_createGame();
-        bytes32 marketId = oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
 
         vm.expectRevert(GameNotSettledOrCanceled.selector);
         oracle.resolveMarket(marketId);

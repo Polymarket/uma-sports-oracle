@@ -45,7 +45,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     bytes32 public constant OO_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
 
     /*///////////////////////////////////////////////////////////////////
-                            STATE 
+                                STATE 
     //////////////////////////////////////////////////////////////////*/
 
     /// @notice Mapping of gameId to Games
@@ -104,30 +104,42 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         return gameId;
     }
 
+    /// @notice Creates a Winner(Team A vs Team B) Market based on an underlying Game
+    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    function createWinnerMarket(bytes32 gameId) external returns (bytes32) {
+        return createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+    }
+
+    /// @notice Creates a Spreads Market based on an underlying Game
+    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param underdog     - The Underdog of the Market
+    /// @param line         - The line of the Market
+    /// @dev The line is always scaled by 10 ^ 6
+    /// @dev For a Spread line of 2.5, line = 2_500_000
+    function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
+        return createMarket(gameId, MarketType.Spreads, underdog, line);
+    }
+
+    /// @notice Creates a Totals Market based on an underlying Game
+    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param underdog     - The Underdog of the Market
+    /// @param line         - The line of the Market
+    /// @dev For a Totals line of 218.5, line = 218_500_000
+    function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
+        return createMarket(gameId, MarketType.Totals, underdog, line);
+    }
+
     /// @notice Creates a Market based on an underlying Game
     /// @dev Creates the underlying CTF market based on the marketId
     /// @param gameId       - The unique Id of a Game to be linked to the Market
     /// @param marketType   - The marketType of the Market
     /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
     /// @param line         - The line of the Market. Unused for Winner markets
-    /// @dev The line is always scaled by 10 ^ 6.
-    /// @dev For a Spread line of 2.5, line = 2_500_000
-    /// @dev For a Totals line of 218.5, line = 218_500_000
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
-        external
+        public
         returns (bytes32 marketId)
     {
         GameData storage gameData = games[gameId];
-
-        // TODO: can use a bytes32 to encode the favorite/underdog and the line together
-        // line can easily be a uint8, say uint16 to be super safe. Next byte can be favorite
-        // favorite/underdog is just a 0 or 1, to represent Home or Away
-        // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
-        // MarketData.LineParams, MarketLines
-
-        // TODO: createWinnerMarket, createSpreadsMarket, createTotalsMarket
-        // this keeps my function signature clean for the winner markets, just bytes32 for the winner market
-        //
 
         // Validate that the Game exists
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();

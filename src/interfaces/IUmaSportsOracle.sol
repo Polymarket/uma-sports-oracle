@@ -71,11 +71,15 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
         uint256 liveness
     ) external returns (bytes32);
 
+    function createWinnerMarket(bytes32 gameId) external returns (bytes32);
+
+    function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32);
+
+    function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32);
+
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         external
-        returns (bytes32 marketId);
-
-    // TODO: create Market types
+        returns (bytes32);
 
     function settleGame(bytes32 gameId) external;
 
