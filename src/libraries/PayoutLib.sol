@@ -32,7 +32,7 @@ library PayoutLib {
         if (marketType == MarketType.Spreads) {
             return _constructSpreadsPayouts(ordering, home, away, line, underdog);
         }
-        return _constructTotalsPayouts(ordering, home, away, line, underdog);
+        return _constructTotalsPayouts(home, away, line);
     }
 
     function _constructCanceledPayouts(MarketType marketType) internal pure returns (uint256[] memory) {
@@ -204,14 +204,19 @@ library PayoutLib {
         return payouts;
     }
 
-    function _constructTotalsPayouts(Ordering ordering, uint32 home, uint32 away, uint256 line, Underdog underdog)
-        internal
-        pure
-        returns (uint256[] memory)
-    {
+    function _constructTotalsPayouts(uint32 home, uint32 away, uint256 line) internal pure returns (uint256[] memory) {
         uint256[] memory payouts = new uint256[](2);
-
-        // TODO
+        // Totals outcome structure ["Over", "Under"]
+        uint256 total = uint256(home) + uint256(away);
+        if (total <= line) {
+            // Under wins, [0,1]
+            payouts[0] = 0;
+            payouts[1] = 1;
+        } else {
+            // Over wins, [1,0]
+            payouts[0] = 1;
+            payouts[1] = 0;
+        }
         return payouts;
     }
 }

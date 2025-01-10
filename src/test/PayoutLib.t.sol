@@ -190,10 +190,6 @@ contract PayoutLibTest is TestHelper {
     function test_constructSpreadsPayouts() public pure {
         uint256[] memory payouts;
         uint256 line = 15; // line of 15.5
-        uint32 home;
-        uint32 away;
-        Underdog underdog;
-        Ordering ordering;
 
         // Home ordering, Home underdog, Home win, Spread Market Home win: [1,0]
         payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(133), uint32(101), line, Underdog.Home);
@@ -343,11 +339,19 @@ contract PayoutLibTest is TestHelper {
         }
     }
 
-    function test_constructTotalsPayouts() public pure {
-        // TODO
-    }
+    function test_constructTotalsPayouts(uint32 home, uint32 away, uint32 line) public pure {
+        vm.assume(line > 0 && line < 500);
 
-    function testConstructPayouts() public {
-        // TODO
+        uint256 total = uint256(home) + uint256(away);
+        uint256[] memory payouts = PayoutLib._constructTotalsPayouts(home, away, line);
+        if (total <= line) {
+            // Under win, [0,1]
+            assertEq(uint256(0), payouts[0]);
+            assertEq(uint256(1), payouts[1]);
+        } else {
+            // Over win, [1,0]
+            assertEq(uint256(1), payouts[0]);
+            assertEq(uint256(0), payouts[1]);
+        }
     }
 }

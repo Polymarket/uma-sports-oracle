@@ -117,6 +117,52 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Created), uint8(marketData.state));
     }
 
+    function test_createMarket_Spreads(uint256 line) public {
+        vm.assume(line > 0);
+        test_createGame();
+        MarketType marketType = MarketType.Spreads;
+
+        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+
+        vm.expectEmit();
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+
+        vm.prank(admin);
+        oracle.createMarket(gameId, marketType, Underdog.Home, line);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+
+        // Verify the Market's state post creation
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(MarketType.Spreads), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Created), uint8(marketData.state));
+    }
+
+    function test_createMarket_Totals(uint256 line) public {
+        vm.assume(line > 0);
+        test_createGame();
+        MarketType marketType = MarketType.Totals;
+
+        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+
+        vm.expectEmit();
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+
+        vm.prank(admin);
+        oracle.createMarket(gameId, marketType, Underdog.Home, line);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+
+        // Verify the Market's state post creation
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(MarketType.Totals), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Created), uint8(marketData.state));
+    }
+
     function test_createMarket_fuzz(uint256 _line, uint8 _marketType) public {
         test_createGame();
 
@@ -274,4 +320,55 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.prank(admin);
         oracle.settleGame(gameId);
     }
+
+    function test_resolveMarket() public {
+        test_createGame();
+
+        uint32 home = 133;
+        uint32 away = 101;
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Create a Winner market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        // Home win on a Home vs Away Game: [1,0]
+        uint256[] memory expectedPayouts = new uint256[](2);
+        expectedPayouts[0] = 1;
+        expectedPayouts[1] = 0;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, expectedPayouts);
+
+        vm.prank(admin);
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(0, marketData.line);
+        assertEq(uint8(MarketType.WinnerBinary), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        // payout denominator is set when condition is resolved
+        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
+
+    function test_resolveMarket_revert_MarketDoesNotExist() public {
+        // TODO: revert
+    }
+
+    function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
+        // TODO: revert
+    }
+
+    // TODO: fuzz on resolveMarket
 }

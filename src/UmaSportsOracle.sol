@@ -110,8 +110,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @param marketType   - The marketType of the Market
     /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
     /// @param line         - The line of the Market. Unused for Winner markets
-    /// @dev For Spread Markets, the line given should be the lower bound.
+    /// @dev For Spread Markets, the line must be be the lower bound.
     /// @dev E.g For a spread of 2.5, line = 2.
+    /// @dev For Totals Markets, the line must be the lower bound.
+    /// @dev E.g For a total of 218.5, line = 218.
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         external
         returns (bytes32 marketId)
@@ -177,7 +179,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         GameData storage gameData = games[marketData.gameId];
 
         // Ensure the Game is settled or canceled
-        if (gameData.state == GameState.Settled || gameData.state == GameState.Canceled) {
+        if (gameData.state != GameState.Settled && gameData.state != GameState.Canceled) {
             revert GameNotSettledOrCanceled();
         }
 
