@@ -75,6 +75,8 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
         external
         returns (bytes32 marketId);
 
+    // TODO: create Market types
+
     function settleGame(bytes32 gameId) external;
 
     function resolveMarket(bytes32 marketId) external;

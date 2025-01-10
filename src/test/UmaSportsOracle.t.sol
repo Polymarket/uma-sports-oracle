@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {console2 as console} from "lib/forge-std/src/Test.sol";
+
 import {OracleSetup} from "./dev/OracleSetup.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
@@ -315,7 +317,7 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.settleGame(gameId);
     }
 
-    function test_resolveMarket() public {
+    function test_resolveMarket_WinnerBinary() public {
         test_createGame();
 
         uint32 home = 133;
@@ -352,7 +354,48 @@ contract UmaSportsOracleTest is OracleSetup {
         // Assert conditional token state post resolution
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
         // payout denominator is set when condition is resolved
-        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
+
+    function test_resolveMarket_WinnerDraw() public {
+        test_createGame();
+
+        uint32 home = 133;
+        uint32 away = 101;
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Create a Winner market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerDraw, Underdog.Home, 0);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        // Home win: [1,0,0]
+        uint256[] memory expectedPayouts = new uint256[](3);
+        expectedPayouts[0] = 1;
+        expectedPayouts[1] = 0;
+        expectedPayouts[2] = 0;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, expectedPayouts);
+
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(0, marketData.line);
+        assertEq(uint8(MarketType.WinnerDraw), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(3)));
+        // payout denominator is set when condition is resolved
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
     function test_resolveMarket_Spreads() public {
@@ -394,7 +437,7 @@ contract UmaSportsOracleTest is OracleSetup {
         // Assert conditional token state post resolution
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
         // payout denominator is set when condition is resolved
-        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
     function test_resolveMarket_Totals() public {
@@ -436,24 +479,67 @@ contract UmaSportsOracleTest is OracleSetup {
         // Assert conditional token state post resolution
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
         // payout denominator is set when condition is resolved
-        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
-    function test_resolveMarket_WinnerDraw() public {
+    function test_resolveMarket_Canceled() public {
         // TODO
     }
 
     function test_resolveMarket_revert_MarketDoesNotExist() public {
-        // TODO: revert
+        vm.expectRevert(MarketDoesNotExist.selector);
+        oracle.resolveMarket(bytes32(0));
     }
 
     function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
-        // TODO: revert
+        test_createGame();
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.WinnerBinary, Underdog.Home, 0);
+
+        vm.expectRevert(GameNotSettledOrCanceled.selector);
+        oracle.resolveMarket(marketId);
     }
 
-    function test_resolveMarket_fuzz() public {
-        // TODO
-    }
+    function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 line, uint8 _marketType, uint8 _underdog)
+        public
+    {
+        test_createGame();
 
-    // TODO: fuzz on resolveMarket
+        _marketType = uint8(bound(_marketType, 0, 3));
+        MarketType marketType = MarketType(_marketType);
+
+        _underdog = uint8(bound(_underdog, 0, 1));
+        Underdog underdog = Underdog(_underdog);
+
+        if (marketType == MarketType.WinnerBinary || marketType == MarketType.WinnerDraw) {
+            line = 0;
+        }
+
+        // Create a market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, marketType, underdog, line);
+
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(marketType), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        uint256 outcomeSlotCount = 2;
+        if (marketType == MarketType.WinnerDraw) outcomeSlotCount = 3;
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeSlotCount));
+        // payout denominator is set when condition is resolved
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
 }

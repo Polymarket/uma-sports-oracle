@@ -49,10 +49,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     //////////////////////////////////////////////////////////////////*/
 
     /// @notice Mapping of gameId to Games
-    mapping(bytes32 => GameData) public games;
+    mapping(bytes32 => GameData) internal games;
 
     /// @notice Mapping of marketId to Markets
-    mapping(bytes32 => MarketData) public markets;
+    mapping(bytes32 => MarketData) internal markets;
 
     constructor(address _ctf, address _finder) {
         ctf = IConditionalTokens(_ctf);
@@ -126,6 +126,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
         // MarketData.LineParams, MarketLines
 
+        // TODO: createWinnerBinaryMarket, createWinnerDrawMarket, createSpreadsMarket, createTotalsMarket
+        // this keeps my function signature clean for the winner markets, just bytes32 for the winner market
+        //
+
         // Validate that the Game exists
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
@@ -182,6 +186,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         if (gameData.state != GameState.Settled && gameData.state != GameState.Canceled) {
             revert GameNotSettledOrCanceled();
         }
+
+        // TODO: do we want a delay before Markets can be resolved by a settled Game?
 
         // Resolve the Market
         _resolve(marketId, gameData, marketData);
