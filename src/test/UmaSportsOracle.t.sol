@@ -94,7 +94,7 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_createMarket() public {
+    function test_createMarket_WinnerBinary() public {
         test_createGame();
         MarketType marketType = MarketType.WinnerBinary;
         uint256 line = 0;
@@ -210,7 +210,7 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
-        test_createMarket();
+        test_createMarket_WinnerBinary();
 
         vm.expectRevert(MarketAlreadyCreated.selector);
         vm.prank(admin);
@@ -355,12 +355,104 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
+    function test_resolveMarket_Spreads() public {
+        test_createGame();
+
+        uint32 home = 133;
+        uint32 away = 140;
+        uint256 line = 15;
+
+        // Create a Spreads market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.Spreads, Underdog.Home, line);
+
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        // Underdog Home loss within spread on a Home vs Away Spread market, spread market Home win: [1,0]
+        uint256[] memory expectedPayouts = new uint256[](2);
+        expectedPayouts[0] = 1;
+        expectedPayouts[1] = 0;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, expectedPayouts);
+
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(MarketType.Spreads), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        // payout denominator is set when condition is resolved
+        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
+
+    function test_resolveMarket_Totals() public {
+        test_createGame();
+
+        uint32 home = 133;
+        uint32 away = 140;
+        uint256 line = 300;
+
+        // Create a Spreads market on the Game
+        bytes32 marketId = oracle.createMarket(gameId, MarketType.Totals, Underdog.Home, line);
+
+        int256 score = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Push score data to the OO
+        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
+
+        // settle the game
+        oracle.settleGame(gameId);
+
+        // total <= line, under wins: [0,1]
+        uint256[] memory expectedPayouts = new uint256[](2);
+        expectedPayouts[0] = 0;
+        expectedPayouts[1] = 1;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, expectedPayouts);
+
+        oracle.resolveMarket(marketId);
+
+        // Verify post resolution state
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(line, marketData.line);
+        assertEq(uint8(MarketType.Totals), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        // payout denominator is set when condition is resolved
+        assertEq(1, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
+
+    function test_resolveMarket_WinnerDraw() public {
+        // TODO
+    }
+
     function test_resolveMarket_revert_MarketDoesNotExist() public {
         // TODO: revert
     }
 
     function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
         // TODO: revert
+    }
+
+    function test_resolveMarket_fuzz() public {
+        // TODO
     }
 
     // TODO: fuzz on resolveMarket
