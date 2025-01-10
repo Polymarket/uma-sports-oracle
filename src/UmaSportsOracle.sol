@@ -112,8 +112,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @param line         - The line of the Market. Unused for Winner markets
     /// @dev The line is always scaled by 10 ^ 6.
     /// @dev For a Spread line of 2.5, line = 2_500_000
-    /// @dev For a Totals line of 218.5, line =  Markets, the line must be the lower bound.
-    /// @dev E.g For a total of 218.5, line = 218_500_000;
+    /// @dev For a Totals line of 218.5, line = 218_500_000
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         external
         returns (bytes32 marketId)
@@ -126,10 +125,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // call it lineParams, and we can extract, convert the raw types to a struct then set it on the MarketData
         // MarketData.LineParams, MarketLines
 
-        // Canceled games, spread markets construction makes sense to niraek
-        // TODO: talk to uma guys aabout canceled/delayed games, 50/50 invariant vs wait
-
-        // TODO: createWinnerMarket, createWinnerDrawMarket, createSpreadsMarket, createTotalsMarket
+        // TODO: createWinnerMarket, createSpreadsMarket, createTotalsMarket
         // this keeps my function signature clean for the winner markets, just bytes32 for the winner market
         //
 

@@ -119,9 +119,11 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Created), uint8(marketData.state));
     }
 
-    function test_createMarket_Spreads(uint256 line) public {
-        vm.assume(line > 0);
+    function test_createMarket_Spreads(uint256 _line) public {
+        vm.assume(_line > 0 && _line < 100);
+
         test_createGame();
+        uint256 line = _line * (10 ** 6) + (5 * (10 ** 5));
         MarketType marketType = MarketType.Spreads;
 
         bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
@@ -166,6 +168,8 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_createMarket_fuzz(uint256 _line, uint8 _marketType) public {
+        vm.assume(_line > 0 && _line < 100);
+
         test_createGame();
 
         _marketType = uint8(bound(_marketType, 0, 2));
@@ -173,6 +177,8 @@ contract UmaSportsOracleTest is OracleSetup {
 
         if (marketType == MarketType.Winner) {
             _line = 0;
+        } else {
+            _line = _line * (10 ** 6) + (5 * (10 ** 5));
         }
 
         uint256 outcomeCount = 2;
@@ -359,7 +365,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         uint32 home = 133;
         uint32 away = 140;
-        uint256 line = 15;
+        uint256 line = 15_500_000;
 
         // Create a Spreads market on the Game
         bytes32 marketId = oracle.createMarket(gameId, MarketType.Spreads, Underdog.Home, line);
@@ -373,10 +379,10 @@ contract UmaSportsOracleTest is OracleSetup {
         // settle the game
         oracle.settleGame(gameId);
 
-        // Underdog Home loss within spread on a Home vs Away Spread market, spread market Home win: [1,0]
+        // Underdog Home loss within spread, Underdog win: [0,1]
         uint256[] memory expectedPayouts = new uint256[](2);
-        expectedPayouts[0] = 1;
-        expectedPayouts[1] = 0;
+        expectedPayouts[0] = 0;
+        expectedPayouts[1] = 1;
 
         vm.expectEmit();
         emit MarketResolved(marketId, expectedPayouts);
@@ -401,7 +407,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         uint32 home = 133;
         uint32 away = 140;
-        uint256 line = 300;
+        uint256 line = 300_500_000;
 
         // Create a Spreads market on the Game
         bytes32 marketId = oracle.createMarket(gameId, MarketType.Totals, Underdog.Home, line);
@@ -491,9 +497,11 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
     }
 
-    function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 line, uint8 _marketType, uint8 _underdog)
+    function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 _line, uint8 _marketType, uint8 _underdog)
         public
     {
+        vm.assume(_line > 0 && _line < 100);
+
         test_createGame();
 
         _marketType = uint8(bound(_marketType, 0, 2));
@@ -502,8 +510,11 @@ contract UmaSportsOracleTest is OracleSetup {
         _underdog = uint8(bound(_underdog, 0, 1));
         Underdog underdog = Underdog(_underdog);
 
+        uint256 line;
         if (marketType == MarketType.Winner) {
             line = 0;
+        } else {
+            line = _line * (10 ** 6) + (5 * (10 ** 5));
         }
 
         // Create a market on the Game
