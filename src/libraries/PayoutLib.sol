@@ -167,7 +167,7 @@ library PayoutLib {
                 }
             } else {
                 // Underdog is Home and Home lost
-                // The underdog must lose by less than the line to win else Away wins
+                // The underdog must lose by the line or less to win else Away wins
                 spread = away - home;
                 if (spread < line) {
                     // spread < line for Home, indicating a Home win
@@ -209,7 +209,7 @@ library PayoutLib {
                 }
             } else {
                 // Underdog is Away and Away lost
-                // The underdog must lose by less than the line to win else Home wins
+                // The underdog must lose by the line or less to win else Home wins
                 spread = home - away;
                 if (spread < line) {
                     // spread < line for Away, indicating an Away win

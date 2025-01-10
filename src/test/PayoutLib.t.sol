@@ -152,26 +152,71 @@ contract PayoutLibTest is TestHelper {
 
     function test_constructSpreadsPayouts() public {
         uint256[] memory payouts;
+        uint256 line = 15; // line of 15.5
         uint32 home;
         uint32 away;
-        uint256 line;
         Underdog underdog;
         Ordering ordering;
 
-        // Home ordering, Home underdog, Home win
-        home = 133;
-        away = 101;
-        line = 15;
-        underdog = Underdog.Home;
-        ordering = Ordering.HomeVsAway;
+        // Home ordering, Home underdog, Home win, Spread Market Home win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(133), uint32(101), line, Underdog.Home);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
 
-        //
-        // payouts = PayoutLib._constructSpreadsPayouts(ordering, home, away, line, underdog);
-        // assertEq(uint256(1), payouts[0]);
-        // assertEq(uint256(0), payouts[1]);
-        // assertEq(uint256(0), payouts[2]);
+        // Home ordering, Home underdog, Home loses, spread <= line, Spread Market Home win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(90), uint32(101), line, Underdog.Home);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
 
-        // PayoutLib._constructSpreadsPayouts(ordering, home, away, line, underdog);
+        // Home ordering, Home underdog, Home loses, spread > line, Spread Market Away win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(70), uint32(101), line, Underdog.Home);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
+        
+        // Home ordering, Away underdog, Away win, Spread Market Away win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(133), line, Underdog.Away);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
+
+        // Home ordering, Away underdog, Away loses, spread <= line, Spread Market Away win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(90), line, Underdog.Away);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
+
+        // Home ordering, Away underdog, Away loses, spread > line, Spread Market Home win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.HomeVsAway, uint32(101), uint32(85), line, Underdog.Home);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
+
+        // Away ordering, Home underdog, Home win, Spread Market Home win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(133), uint32(101), line, Underdog.Home);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
+
+        // Away ordering, Home underdog, Home loses, spread <= line, Spread Market Home win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(90), uint32(101), line, Underdog.Home);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
+
+        // Away ordering, Home underdog, Home loses, spread > line, Spread Market Away win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(70), uint32(101), line, Underdog.Home);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
+        
+        // Away ordering, Away underdog, Away win, Spread Market Away win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(133), line, Underdog.Away);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
+
+        // Home ordering, Away underdog, Away loses, spread <= line, Spread Market Away win: [1,0]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(90), line, Underdog.Away);
+        assertEq(uint256(1), payouts[0]);
+        assertEq(uint256(0), payouts[1]);
+
+        // Away ordering, Away underdog, Away loses, spread > line, Spread Market Home win: [0,1]
+        payouts = PayoutLib._constructSpreadsPayouts(Ordering.AwayVsHome, uint32(101), uint32(85), line, Underdog.Home);
+        assertEq(uint256(0), payouts[0]);
+        assertEq(uint256(1), payouts[1]);
     }
 
     function test_constructSpreadsPayouts_fuzz(uint32 home, uint32 away, uint8 _ordering) public {
