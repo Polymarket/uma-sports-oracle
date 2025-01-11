@@ -476,9 +476,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Resolves a market
-    /// TODO: params
+    /// @param marketId - The unique Market Id
+    /// @param gameData - The game data
+    /// @param marketData - The market data
     function _resolve(bytes32 marketId, GameData storage gameData, MarketData storage marketData) internal {
-        // TODO: too many vars in construct payouts. Why not just pass the gameData and marketData vars directly?
         uint256[] memory payouts = PayoutLib.constructPayouts(
             gameData.state,
             marketData.marketType,
