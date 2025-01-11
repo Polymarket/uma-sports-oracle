@@ -31,21 +31,35 @@ struct GameData {
     uint32 homeScore;
     // The score of the away team
     uint32 awayScore;
+    // The ERC20 reward token
+    address token;
     // The reward used to pay OO proposers
     uint256 reward;
     // The bond which OO proposers must put up
     uint256 bond;
     // The custom liveness for the Game, 0 for default
     uint256 liveness;
+    // The OO request timestamp
+    uint256 timestamp;
     // The ancillary data for the Game
     bytes ancillaryData;
 }
 
 enum MarketType {
-    WinnerBinary,
-    WinnerDraw,
+    Winner,
     Spreads,
     Totals
+}
+
+enum Underdog {
+    Home,
+    Away
+}
+
+// TODO: use this vs multiple args?
+struct LineParams {
+    Underdog underdog;
+    uint256 line;
 }
 
 enum MarketState {
@@ -60,4 +74,5 @@ struct MarketData {
     MarketState state; // The current State of the Market
     MarketType marketType; // The market type, used for determining resolution
     uint256 line; // The Line of the Market, used for spreads and totals, 0 for Winner markets
+    Underdog underdog; // The Team expected to lose the Market, unused for Winner markets
 }
