@@ -316,12 +316,13 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State requestState = optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
+        State requestState =
+            optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
         if (requestState != State.Requested) revert InvalidRequestState();
 
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
-        
+
         // Update the bond amount in storage
         gameData.bond = bond;
 
@@ -337,12 +338,13 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State requestState = optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
+        State requestState =
+            optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
         if (requestState != State.Requested) revert InvalidRequestState();
 
         // no-op if the liveness did not change
         if (liveness == gameData.liveness) return;
-        
+
         // Update the liveness amount in storage
         gameData.liveness = liveness;
 
