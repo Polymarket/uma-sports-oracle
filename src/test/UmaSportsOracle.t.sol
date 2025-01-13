@@ -101,7 +101,7 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketType marketType = MarketType.Winner;
         uint256 line = 0;
 
-        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -123,10 +123,10 @@ contract UmaSportsOracleTest is OracleSetup {
         vm.assume(_line > 0 && _line < 100);
 
         test_createGame();
-        uint256 line = _line * (10 ** 6) + (5 * (10 ** 5));
+        uint256 line = convertLine(_line);
         MarketType marketType = MarketType.Spreads;
 
-        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -149,7 +149,7 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
         MarketType marketType = MarketType.Totals;
 
-        bytes32 marketId = oracle.getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -178,12 +178,12 @@ contract UmaSportsOracleTest is OracleSetup {
         if (marketType == MarketType.Winner) {
             _line = 0;
         } else {
-            _line = _line * (10 ** 6) + (5 * (10 ** 5));
+            _line = convertLine(_line);
         }
 
         uint256 outcomeCount = 2;
 
-        bytes32 marketId = oracle.getMarketId(gameId, marketType, _line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, _line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
 
         vm.expectEmit();
@@ -514,7 +514,7 @@ contract UmaSportsOracleTest is OracleSetup {
         if (marketType == MarketType.Winner) {
             line = 0;
         } else {
-            line = _line * (10 ** 6) + (5 * (10 ** 5));
+            line = convertLine(_line);
         }
 
         // Create a market on the Game

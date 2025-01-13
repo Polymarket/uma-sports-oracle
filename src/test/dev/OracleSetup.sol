@@ -4,7 +4,9 @@ pragma solidity ^0.8.27;
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
+import {MarketType} from "src/libraries/Structs.sol";
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
+
 import {IUmaSportsOracleEE} from "src/interfaces/IUmaSportsOracle.sol";
 
 import {IERC20} from "../interfaces/IERC20.sol";
@@ -43,5 +45,17 @@ abstract contract OracleSetup is IUmaSportsOracleEE, TestHelper {
         oracle = new UmaSportsOracle(ctf, finder);
         IERC20(usdc).approve(address(oracle), type(uint256).max);
         vm.stopPrank();
+    }
+
+    function getMarketId(bytes32 _gameId, MarketType marketType, uint256 line, address creator)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(_gameId, marketType, line, creator));
+    }
+
+    function convertLine(uint256 line) internal pure returns (uint256) {
+        return (line * (10 ** 6)) + (5 * (10 ** 5));
     }
 }
