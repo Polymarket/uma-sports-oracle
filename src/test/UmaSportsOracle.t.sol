@@ -166,6 +166,23 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Created), uint8(marketData.state));
     }
 
+    function test_createMarket_ConditionAlreadyPrepared() public {
+        test_createGame();
+
+        // "Frontrun" the createWinnerMarket call by preparing the expected marketId on the CTF
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, admin);
+        IConditionalTokens(ctf).prepareCondition(address(oracle), marketId, 2);
+
+        // The "frontrunning" should have no impact on creating the market
+        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+
+        vm.expectEmit();
+        emit MarketCreated(marketId, gameId, conditionId, uint8(MarketType.Winner), 0);
+
+        vm.prank(admin);
+        oracle.createWinnerMarket(gameId);
+    }
+
     function test_createMarket_fuzz(uint256 _line, uint8 _marketType) public {
         vm.assume(_line > 0 && _line < 100);
 
