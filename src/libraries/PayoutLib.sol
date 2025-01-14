@@ -7,6 +7,7 @@ library PayoutLib {
     uint256 internal constant ONE = 10 ** 6;
 
     /// @notice Generate a payout array for the Market, given its state, market type, ordering and line
+    /// @param state        - The state of the Game
     /// @param marketType   - The market type
     /// @param ordering     - The Game's ordering, HomeVsAway or AwayVsHome
     /// @param home         - The score of the Home team
