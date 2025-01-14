@@ -102,15 +102,15 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Creates a Winner(Team A vs Team B) Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
     function createWinnerMarket(bytes32 gameId) external returns (bytes32) {
         return createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
     }
 
     /// @notice Creates a Spreads Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
-    /// @param underdog     - The Underdog of the Market
-    /// @param line         - The line of the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
+    /// @param underdog - The Underdog of the Market
+    /// @param line     - The line of the Market
     /// @dev The line is always scaled by 10 ^ 6
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
@@ -118,9 +118,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Creates a Totals Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
-    /// @param underdog     - The Underdog of the Market
-    /// @param line         - The line of the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
+    /// @param underdog - The Underdog of the Market
+    /// @param line     - The line of the Market
     /// @dev For a Totals line of 218.5, line = 218_500_000
     function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
         return createMarket(gameId, MarketType.Totals, underdog, line);
@@ -182,7 +182,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Resolves a Market using the scores of a Settled Game
-    /// @param marketId -   The unique marketId
+    /// @param marketId - The unique marketId
     function resolveMarket(bytes32 marketId) external {
         MarketData storage marketData = markets[marketId];
         // Ensure the Market exists
@@ -204,15 +204,19 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     //////////////////////////////////////////////////////////////////*/
 
     /// @notice Checks if a Game is ready to be settled
-    /// @param gameId   - The unique GameId
+    /// @param gameId   - The unique game Id
     function ready(bytes32 gameId) public view returns (bool) {
         return _ready(games[gameId]);
     }
 
+    /// @notice Returns the GameData
+    /// @param gameId   - The unique game Id
     function getGame(bytes32 gameId) external view returns (GameData memory) {
         return games[gameId];
     }
 
+    /// @notice Returns the MarketData
+    /// @param marketId - The unique market Id
     function getMarket(bytes32 marketId) external view returns (MarketData memory) {
         return markets[marketId];
     }
