@@ -363,9 +363,12 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Prepare a new Condition on the CTF
     /// @dev The marketId will be used as the questionID
     /// @param marketId - The unique MarketId
-    function _prepareMarket(bytes32 marketId) internal returns (bytes32) {
-        ctf.prepareCondition(address(this), marketId, uint256(2));
-        return keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+    function _prepareMarket(bytes32 marketId) internal returns (bytes32 conditionId) {
+        conditionId = keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+        if (ctf.getOutcomeSlotCount(conditionId) == 0) {
+            ctf.prepareCondition(address(this), marketId, 2);
+        }
+        return conditionId;
     }
 
     /// @notice Report payouts on the CTF
