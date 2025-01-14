@@ -12,7 +12,7 @@ import {IFinder} from "./interfaces/IFinder.sol";
 import {IUmaSportsOracle} from "./interfaces/IUmaSportsOracle.sol";
 import {IAddressWhitelist} from "./interfaces/IAddressWhitelist.sol";
 import {IConditionalTokens} from "./interfaces/IConditionalTokens.sol";
-import {IOptimisticOracleV2} from "./interfaces/IOptimisticOracleV2.sol";
+import {IOptimisticOracleV2, State} from "./interfaces/IOptimisticOracleV2.sol";
 
 import {ERC20, SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -102,15 +102,15 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Creates a Winner(Team A vs Team B) Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
     function createWinnerMarket(bytes32 gameId) external returns (bytes32) {
         return createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
     }
 
     /// @notice Creates a Spreads Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
-    /// @param underdog     - The Underdog of the Market
-    /// @param line         - The line of the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
+    /// @param underdog - The Underdog of the Market
+    /// @param line     - The line of the Market
     /// @dev The line is always scaled by 10 ^ 6
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
@@ -118,9 +118,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Creates a Totals Market based on an underlying Game
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
-    /// @param underdog     - The Underdog of the Market
-    /// @param line         - The line of the Market
+    /// @param gameId   - The unique Id of a Game to be linked to the Market
+    /// @param underdog - The Underdog of the Market
+    /// @param line     - The line of the Market
     /// @dev For a Totals line of 218.5, line = 218_500_000
     function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
         return createMarket(gameId, MarketType.Totals, underdog, line);
@@ -149,7 +149,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
             revert InvalidLine();
         }
 
-        marketId = getMarketId(gameId, marketType, line, msg.sender);
+        marketId = keccak256(abi.encode(gameId, marketType, line, msg.sender));
 
         // Validate that the market is unique
         if (isMarketCreated(marketId)) revert MarketAlreadyCreated();
@@ -182,7 +182,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Resolves a Market using the scores of a Settled Game
-    /// @param marketId -   The unique marketId
+    /// @param marketId - The unique marketId
     function resolveMarket(bytes32 marketId) external {
         MarketData storage marketData = markets[marketId];
         // Ensure the Market exists
@@ -204,23 +204,19 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     //////////////////////////////////////////////////////////////////*/
 
     /// @notice Checks if a Game is ready to be settled
-    /// @param gameId   - The unique GameId
+    /// @param gameId   - The unique game Id
     function ready(bytes32 gameId) public view returns (bool) {
         return _ready(games[gameId]);
     }
 
-    function getMarketId(bytes32 gameId, MarketType marketType, uint256 line, address creator)
-        public
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(gameId, marketType, line, creator));
-    }
-
+    /// @notice Returns the GameData
+    /// @param gameId   - The unique game Id
     function getGame(bytes32 gameId) external view returns (GameData memory) {
         return games[gameId];
     }
 
+    /// @notice Returns the MarketData
+    /// @param marketId - The unique market Id
     function getMarket(bytes32 marketId) external view returns (MarketData memory) {
         return markets[marketId];
     }
@@ -262,6 +258,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit GameUnpaused(gameId);
     }
 
+    /// @notice Emergency settles a Game
+    /// @param gameId   - The unique game Id
     function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
@@ -275,8 +273,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit GameEmergencySettled(gameId, home, away);
     }
 
+    /// @notice Pauses a market which stops its resolution and allows it to be emergency resolved
+    /// @param marketId - The unique market id
     function pauseMarket(bytes32 marketId) external onlyAdmin {
-        // TODO: natspec
         MarketData storage marketData = markets[marketId];
 
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
@@ -286,8 +285,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit MarketPaused(marketId);
     }
 
+    /// @notice Unpauses a market
+    /// @param marketId - The unique market id
     function unpauseMarket(bytes32 marketId) external onlyAdmin {
-        // TODO: natspec
         MarketData storage marketData = markets[marketId];
 
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
@@ -297,8 +297,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit MarketUnpaused(marketId);
     }
 
+    /// @notice Emergency resolves a market according to the payout array
+    /// @param marketId - The unique marketId
+    /// @param payouts  - The payouts used to resolve the market
     function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
-        // TODO: natspec
         MarketData storage marketData = markets[marketId];
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
 
@@ -311,7 +313,48 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit MarketEmergencyResolved(marketId, payouts);
     }
 
-    // TODO: auth functions on updating bond/liveness
+    /// @notice Admin gated function ton update the UMA bond for a Game
+    /// @param gameId   - The unique game Id
+    /// @param bond     - The updated bond
+    function setBond(bytes32 gameId, uint256 bond) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
+
+        // no-op if the bond did not change
+        if (bond == gameData.bond) return;
+
+        // Update the bond amount in storage
+        gameData.bond = bond;
+
+        // Update the bond in the OO
+        optimisticOracle.setBond(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData, bond);
+        emit BondUpdated(gameId, bond);
+    }
+
+    /// @notice Updates the liveness for a Game
+    /// @param gameId   - The unique game Id
+    /// @param liveness - The liveness value
+    function setLiveness(bytes32 gameId, uint256 liveness) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
+
+        // no-op if the liveness did not change
+        if (liveness == gameData.liveness) return;
+
+        // Update the liveness amount in storage
+        gameData.liveness = liveness;
+
+        // Update liveness in the OO
+        optimisticOracle.setCustomLiveness(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData, liveness);
+
+        emit LivenessUpdated(gameId, liveness);
+    }
 
     /*///////////////////////////////////////////////////////////////////
                             INTERNAL 
@@ -319,25 +362,30 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     /// @notice Prepare a new Condition on the CTF
     /// @dev The marketId will be used as the questionID
-    /// @param marketId     - The unique MarketId
-    function _prepareMarket(bytes32 marketId) internal returns (bytes32) {
-        ctf.prepareCondition(address(this), marketId, uint256(2));
-        // TODO: do we really need the conditionId?
-        return keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+    /// @param marketId - The unique MarketId
+    function _prepareMarket(bytes32 marketId) internal returns (bytes32 conditionId) {
+        conditionId = keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+        if (ctf.getOutcomeSlotCount(conditionId) == 0) {
+            ctf.prepareCondition(address(this), marketId, 2);
+        }
+        return conditionId;
     }
 
+    /// @notice Report payouts on the CTF
+    /// @param marketId - The unique MarketId
+    /// @param payouts  - The payouts used to resolve the Condition
     function _reportPayouts(bytes32 marketId, uint256[] memory payouts) internal {
         ctf.reportPayouts(marketId, payouts);
     }
 
     /// @notice Saves Game Data
-    /// @param creator          - Address of the creator
-    /// @param timestamp        - Timestamp used in the OO request
-    /// @param data             - Data used to resolve a Game
-    /// @param token            - ERC20 token used to pay rewards and bonds
-    /// @param reward           - Reward amount, denominated in token
-    /// @param bond             - Bond amount used, denominated in token
-    /// @param liveness         - UMA liveness period, will be the default liveness period if 0.
+    /// @param creator      - Address of the creator
+    /// @param timestamp    - Timestamp used in the OO request
+    /// @param data         - Data used to resolve a Game
+    /// @param token        - ERC20 token used to pay rewards and bonds
+    /// @param reward       - Reward amount, denominated in token
+    /// @param bond         - Bond amount used, denominated in token
+    /// @param liveness     - UMA liveness period, will be the default liveness period if 0.
     function _saveGame(
         bytes32 gameId,
         address creator,
@@ -364,6 +412,12 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         });
     }
 
+    /// @notice Saves Market Data
+    /// @param marketId     - The unique market Id
+    /// @param gameId       - The unique game Id
+    /// @param line         - The line for the Market
+    /// @param underdog     - The underdog of the Market. Used for Spread markets
+    /// @param marketType   - The market type
     function _saveMarket(bytes32 marketId, bytes32 gameId, uint256 line, Underdog underdog, MarketType marketType)
         internal
     {
@@ -515,7 +569,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         return optimisticOracle.hasPrice(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
-    // TODO: umip description
+    function _getOORequestState(uint256 requestTimestamp, bytes memory ancillaryData) internal returns (State) {
+        return optimisticOracle.getState(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
+    }
+
     function _isCanceled(int256 data) internal pure returns (bool) {
         return data == type(int256).max;
     }

@@ -27,6 +27,18 @@ struct Request {
     uint256 finalFee; // Final fee to pay to the Store upon request to the DVM.
 }
 
+// Struct representing the state of a price request.
+enum State {
+    Invalid, // Never requested.
+    Requested, // Requested, no other actions taken.
+    Proposed, // Proposed, but not expired or disputed yet.
+    Expired, // Proposed, not disputed, past liveness.
+    Disputed, // Disputed, but no DVM price returned yet.
+    Resolved, // Disputed and DVM price is available.
+    Settled // Final price has been set in the contract (can get here from Expired or Resolved).
+
+}
+
 /// @title Optimistic Oracle V2 Interface
 interface IOptimisticOracleV2 {
     /// @notice Requests a new price.
@@ -178,4 +190,14 @@ interface IOptimisticOracleV2 {
         returns (bool);
 
     function defaultLiveness() external view returns (uint256);
+
+    /// @notice Computes the current state of a price request. See the State enum for more details.
+    /// @param requester sender of the initial price request.
+    /// @param identifier price identifier to identify the existing request.
+    /// @param timestamp timestamp to identify the existing request.
+    /// @param ancillaryData ancillary data of the price being requested.
+    /// @return the State.
+    function getState(address requester, bytes32 identifier, uint256 timestamp, bytes memory ancillaryData)
+        external
+        returns (State);
 }

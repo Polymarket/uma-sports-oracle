@@ -19,7 +19,7 @@ interface IUmaSportsOracleEE {
     error DataDoesNotExist();
 
     error GameNotSettledOrCanceled();
-    // TODO: natspec on all errors
+
     error Settled();
     error Paused();
     error GameCannotBePaused();
@@ -29,6 +29,8 @@ interface IUmaSportsOracleEE {
     error MarketCannotBePaused();
     error MarketCannotBeUnpaused();
     error MarketCannotBeEmergencyResolved();
+
+    error InvalidRequestState();
 
     /// @notice Emitted when a Game is created
     event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
@@ -67,6 +69,12 @@ interface IUmaSportsOracleEE {
 
     /// @notice Emitted when a Market is unpaused
     event MarketUnpaused(bytes32 indexed marketId);
+
+    /// @notice Emitted when a Game's bond is updated
+    event BondUpdated(bytes32 indexed gameId, uint256 indexed updatedBond);
+
+    /// @notice Emitted when a Game's liveness is updated
+    event LivenessUpdated(bytes32 indexed gameId, uint256 indexed updatedLiveness);
 }
 
 interface IUmaSportsOracle is IUmaSportsOracleEE {

@@ -56,12 +56,6 @@ enum Underdog {
     Away
 }
 
-// TODO: use this vs multiple args?
-struct LineParams {
-    Underdog underdog;
-    uint256 line;
-}
-
 enum MarketState {
     Created,
     Resolved,
