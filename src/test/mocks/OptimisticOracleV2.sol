@@ -27,10 +27,23 @@ struct Request {
     uint256 finalFee; // Final fee to pay to the Store upon request to the DVM.
 }
 
+// Struct representing the state of a price request.
+enum State {
+    Invalid, // Never requested.
+    Requested, // Requested, no other actions taken.
+    Proposed, // Proposed, but not expired or disputed yet.
+    Expired, // Proposed, not disputed, past liveness.
+    Disputed, // Disputed, but no DVM price returned yet.
+    Resolved, // Disputed and DVM price is available.
+    Settled // Final price has been set in the contract (can get here from Expired or Resolved).
+
+}
+
 contract OptimisticOracleV2 {
     int256 public price;
     bool public _hasPrice;
     Request public req;
+    State public state;
 
     function setPrice(int256 _price) external {
         price = _price;
@@ -71,6 +84,14 @@ contract OptimisticOracleV2 {
 
     function setRequest(Request memory _req) external {
         req = _req;
+    }
+
+    function getState(address, bytes32, uint256, bytes memory) external view returns (State) {
+        return state;
+    }
+
+    function setState(State _state) external {
+        state = _state;
     }
 
     fallback() external {}

@@ -255,7 +255,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Emergency settles a Game
-    /// @param gameId        - The unique game Id
+    /// @param gameId   - The unique game Id
     function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
@@ -270,7 +270,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Pauses a market which stops its resolution and allows it to be emergency resolved
-    /// @param marketId     - The unique market id
+    /// @param marketId - The unique market id
     function pauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
 
@@ -282,7 +282,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Unpauses a market
-    /// @param marketId     - The unique market id
+    /// @param marketId - The unique market id
     function unpauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
 
@@ -294,8 +294,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Emergency resolves a market according to the payout array
-    /// @param marketId     - The unique marketId
-    /// @param payouts      - The payouts used to resolve the market
+    /// @param marketId - The unique marketId
+    /// @param payouts  - The payouts used to resolve the market
     function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
@@ -310,15 +310,14 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Admin gated function ton update the UMA bond for a Game
-    /// @param gameId       - The unique game Id
-    /// @param bond         - The updated bond
+    /// @param gameId   - The unique game Id
+    /// @param bond     - The updated bond
     function setBond(bytes32 gameId, uint256 bond) external onlyAdmin {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State requestState =
-            optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
-        if (requestState != State.Requested) revert InvalidRequestState();
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
 
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
@@ -332,15 +331,14 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Updates the liveness for a Game
-    /// @param gameId       - The unique game Id
-    /// @param liveness     - The liveness value
+    /// @param gameId   - The unique game Id
+    /// @param liveness - The liveness value
     function setLiveness(bytes32 gameId, uint256 liveness) external onlyAdmin {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State requestState =
-            optimisticOracle.getState(address(this), OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
-        if (requestState != State.Requested) revert InvalidRequestState();
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
 
         // no-op if the liveness did not change
         if (liveness == gameData.liveness) return;
@@ -360,27 +358,27 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     /// @notice Prepare a new Condition on the CTF
     /// @dev The marketId will be used as the questionID
-    /// @param marketId     - The unique MarketId
+    /// @param marketId - The unique MarketId
     function _prepareMarket(bytes32 marketId) internal returns (bytes32) {
         ctf.prepareCondition(address(this), marketId, uint256(2));
         return keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
     }
 
     /// @notice Report payouts on the CTF
-    /// @param marketId     - The unique MarketId
-    /// @param payouts      - The payouts used to resolve the Condition
+    /// @param marketId - The unique MarketId
+    /// @param payouts  - The payouts used to resolve the Condition
     function _reportPayouts(bytes32 marketId, uint256[] memory payouts) internal {
         ctf.reportPayouts(marketId, payouts);
     }
 
     /// @notice Saves Game Data
-    /// @param creator          - Address of the creator
-    /// @param timestamp        - Timestamp used in the OO request
-    /// @param data             - Data used to resolve a Game
-    /// @param token            - ERC20 token used to pay rewards and bonds
-    /// @param reward           - Reward amount, denominated in token
-    /// @param bond             - Bond amount used, denominated in token
-    /// @param liveness         - UMA liveness period, will be the default liveness period if 0.
+    /// @param creator      - Address of the creator
+    /// @param timestamp    - Timestamp used in the OO request
+    /// @param data         - Data used to resolve a Game
+    /// @param token        - ERC20 token used to pay rewards and bonds
+    /// @param reward       - Reward amount, denominated in token
+    /// @param bond         - Bond amount used, denominated in token
+    /// @param liveness     - UMA liveness period, will be the default liveness period if 0.
     function _saveGame(
         bytes32 gameId,
         address creator,
@@ -562,6 +560,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     function _dataExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
         return optimisticOracle.hasPrice(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
+    }
+
+    function _getOORequestState(uint256 requestTimestamp, bytes memory ancillaryData) internal returns (State) {
+        return optimisticOracle.getState(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
     function _isCanceled(int256 data) internal pure returns (bool) {

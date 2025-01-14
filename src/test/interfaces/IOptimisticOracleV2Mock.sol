@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Request} from "../mocks/OptimisticOracleV2.sol";
+import {Request, State} from "../mocks/OptimisticOracleV2.sol";
 
 interface IOptimisticOracleV2Mock {
     function setPrice(int256 _price) external;
@@ -23,4 +23,10 @@ interface IOptimisticOracleV2Mock {
     function getRequest(address, bytes32, uint256, bytes memory) external view returns (Request memory);
 
     function setRequest(Request memory _req) external;
+
+    function getState(address requester, bytes32 identifier, uint256 timestamp, bytes memory ancillaryData)
+        external
+        returns (State);
+
+    function setState(State _state) external;
 }

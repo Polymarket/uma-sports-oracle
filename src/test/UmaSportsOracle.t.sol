@@ -6,10 +6,9 @@ import {console2 as console} from "lib/forge-std/src/Test.sol";
 import {OracleSetup} from "./dev/OracleSetup.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
-import {IOptimisticOracleV2} from "src/interfaces/IOptimisticOracleV2.sol";
 
 import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
-import {IOptimisticOracleV2Mock} from "./interfaces/IOptimisticOracleV2Mock.sol";
+import {IOptimisticOracleV2Mock, State} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {Ordering, GameData, GameState, MarketState, MarketType, MarketData, Underdog} from "src/libraries/Structs.sol";
@@ -543,5 +542,181 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeSlotCount));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
+    }
+
+    function test_admin_pauseGame() public {
+        test_createGame();
+
+        vm.expectEmit();
+        emit GamePaused(gameId);
+
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+
+        GameData memory data = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Paused), uint8(data.state));
+    }
+
+    function test_admin_pauseGame_revert_NotAdmin() public {
+        test_createGame();
+
+        vm.expectRevert(NotAdmin.selector);
+        vm.prank(brian);
+        oracle.pauseGame(gameId);
+    }
+
+    function test_admin_pauseGame_revert_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+    }
+
+    function test_admin_pauseGame_revert_GameCannotBePaused() public {
+        test_settleGame(101, 133);
+        vm.expectRevert(GameCannotBePaused.selector);
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+    }
+
+    function test_admin_emergencySettleGame() public {
+        test_admin_pauseGame();
+
+        uint32 home = 101;
+        uint32 away = 133;
+
+        vm.expectEmit();
+        emit GameEmergencySettled(gameId, home, away);
+
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, home, away);
+
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.EmergencySettled), uint8(gameData.state));
+        assertEq(home, gameData.homeScore);
+        assertEq(away, gameData.awayScore);
+    }
+
+    function test_admin_emergencySettleGame_revert_GameCannotBeEmergencySettled() public {
+        test_createGame();
+
+        vm.expectRevert(GameCannotBeEmergencySettled.selector);
+
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, 101, 133);
+    }
+
+    function test_admin_emergencySettleGame_revert_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, 101, 133);
+    }
+
+    function test_admin_unpauseGame() public {
+        test_admin_pauseGame();
+
+        vm.expectEmit();
+        emit GameUnpaused(gameId);
+
+        vm.prank(admin);
+        oracle.unpauseGame(gameId);
+
+        GameData memory data = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Created), uint8(data.state));
+    }
+
+    function test_admin_unpauseGame_revert_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.unpauseGame(gameId);
+    }
+
+    function test_admin_unpauseGame_revert_GameCannotBeUnpaused() public {
+        test_settleGame(101, 133);
+        vm.expectRevert(GameCannotBeUnpaused.selector);
+
+        vm.prank(admin);
+        oracle.unpauseGame(gameId);
+    }
+
+    function test_admin_pauseMarket() public {
+        test_createGame();
+        vm.prank(admin);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        vm.prank(admin);
+        oracle.pauseMarket(marketId);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(uint8(MarketState.Paused), uint8(marketData.state));
+    }
+
+    function test_admin_pauseMarket_revert_MarketDoesNotExist() public {
+        vm.expectRevert(MarketDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.pauseMarket(bytes32(0));
+    }
+
+    function test_admin_pauseMarket_revert_MarketCannotBePaused() public {
+        test_resolveMarket_Winner();
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+
+        vm.expectRevert(MarketCannotBePaused.selector);
+        vm.prank(admin);
+        oracle.pauseMarket(marketId);
+    }
+
+    function test_admin_emergencyResolveMarket() public {
+        test_createGame();
+        vm.prank(admin);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        vm.prank(admin);
+        oracle.pauseMarket(marketId);
+
+        uint256[] memory payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;
+
+        vm.expectEmit();
+        emit MarketEmergencyResolved(marketId, payouts);
+
+        vm.prank(admin);
+        oracle.emergencyResolveMarket(marketId, payouts);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(uint8(MarketState.EmergencyResolved), uint8(marketData.state));
+    }
+
+    function test_admin_setBond(uint256 bond) public {
+        vm.assume(bond != 100_000_000);
+        test_createGame();
+
+        IOptimisticOracleV2Mock(optimisticOracle).setState(State.Requested);
+
+        vm.expectEmit();
+        emit BondUpdated(gameId, bond);
+
+        vm.prank(admin);
+        oracle.setBond(gameId, bond);
+
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(bond, gameData.bond);
+    }
+
+    function test_admin_setLiveness(uint256 liveness) public {
+        vm.assume(liveness > 0);
+        test_createGame();
+
+        IOptimisticOracleV2Mock(optimisticOracle).setState(State.Requested);
+
+        vm.expectEmit();
+        emit LivenessUpdated(gameId, liveness);
+
+        vm.prank(admin);
+        oracle.setLiveness(gameId, liveness);
+
+        GameData memory gameData = oracle.getGame(gameId);
+        assertEq(liveness, gameData.liveness);
     }
 }

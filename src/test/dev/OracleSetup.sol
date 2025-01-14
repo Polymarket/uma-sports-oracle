@@ -7,6 +7,7 @@ import {TestHelper} from "./TestHelper.sol";
 import {MarketType} from "src/libraries/Structs.sol";
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 
+import {IAuthEE} from "src/modules/interfaces/IAuth.sol";
 import {IUmaSportsOracleEE} from "src/interfaces/IUmaSportsOracle.sol";
 
 import {IERC20} from "../interfaces/IERC20.sol";
@@ -18,7 +19,7 @@ import {OptimisticOracleV2} from "../mocks/OptimisticOracleV2.sol";
 
 import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
 
-abstract contract OracleSetup is IUmaSportsOracleEE, TestHelper {
+abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
     address public admin = alice;
     UmaSportsOracle public oracle;
     address public usdc;
