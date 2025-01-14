@@ -38,8 +38,9 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
                             CONSTANTS 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Unique query identifier for the Optimistic Oracle
-    bytes32 public constant OO_IDENTIFIER = "MOCK_SPORTS_IDENTIFIER";
+    /// @notice Unique query identifier to request multiple values from the OO
+    /// https://github.com/UMAprotocol/UMIPs/blob/master/UMIPs/umip-183.md
+    bytes32 public constant IDENTIFIER = "MULTIPLE_VALUES";
 
     /*///////////////////////////////////////////////////////////////////
                                 STATE 
@@ -330,7 +331,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         gameData.bond = bond;
 
         // Update the bond in the OO
-        optimisticOracle.setBond(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData, bond);
+        optimisticOracle.setBond(IDENTIFIER, gameData.timestamp, gameData.ancillaryData, bond);
         emit BondUpdated(gameId, bond);
     }
 
@@ -351,7 +352,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         gameData.liveness = liveness;
 
         // Update liveness in the OO
-        optimisticOracle.setCustomLiveness(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData, liveness);
+        optimisticOracle.setCustomLiveness(IDENTIFIER, gameData.timestamp, gameData.ancillaryData, liveness);
 
         emit LivenessUpdated(gameId, liveness);
     }
@@ -463,7 +464,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         }
 
         // Send a request to the Optimistic oracle
-        optimisticOracle.requestPrice(OO_IDENTIFIER, timestamp, data, IERC20(token), reward);
+        optimisticOracle.requestPrice(IDENTIFIER, timestamp, data, IERC20(token), reward);
 
         // Ensure that request is event based
         // Event based ensures that:
@@ -471,11 +472,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // 2. The proposer cannot propose the ignorePrice value in the proposer/dispute flow
         // 3. RefundOnDispute is automatically set, meaning disputes trigger the reward to be refunded
         // Meaning, the only way to get the ignore price value is through the DVM i.e through a dispute
-        optimisticOracle.setEventBased(OO_IDENTIFIER, timestamp, data);
+        optimisticOracle.setEventBased(IDENTIFIER, timestamp, data);
 
         // Update the bond on the OO
-        if (bond > 0) optimisticOracle.setBond(OO_IDENTIFIER, timestamp, data, bond);
-        if (liveness > 0) optimisticOracle.setCustomLiveness(OO_IDENTIFIER, timestamp, data, liveness);
+        if (bond > 0) optimisticOracle.setBond(IDENTIFIER, timestamp, data, bond);
+        if (liveness > 0) optimisticOracle.setCustomLiveness(IDENTIFIER, timestamp, data, liveness);
     }
 
     /// @notice Settles a Game
@@ -483,7 +484,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @param gameData     - The gameData in storage
     function _settle(bytes32 gameId, GameData storage gameData) internal {
         // Get the data from the OO
-        int256 data = optimisticOracle.settleAndGetPrice(OO_IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
+        int256 data = optimisticOracle.settleAndGetPrice(IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
 
         // If cancelled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
@@ -566,11 +567,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     function _dataExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
-        return optimisticOracle.hasPrice(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
+        return optimisticOracle.hasPrice(address(this), IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
     function _getOORequestState(uint256 requestTimestamp, bytes memory ancillaryData) internal returns (State) {
-        return optimisticOracle.getState(address(this), OO_IDENTIFIER, requestTimestamp, ancillaryData);
+        return optimisticOracle.getState(address(this), IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
     function _isCanceled(int256 data) internal pure returns (bool) {
