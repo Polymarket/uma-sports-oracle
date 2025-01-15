@@ -21,11 +21,9 @@ library PayoutLib {
         uint256 line,
         Underdog underdog
     ) internal pure returns (uint256[] memory) {
-        // Canceled games always get resolved to 50/50
         if (state == GameState.Canceled) {
             return _constructCanceledPayouts();
         }
-
         if (marketType == MarketType.Winner) {
             return _constructWinnerPayouts(ordering, home, away);
         }
@@ -35,6 +33,8 @@ library PayoutLib {
         return _constructTotalsPayouts(home, away, line);
     }
 
+    /// @notice Construct canceled payouts
+    /// Canceled games always resolve to 50/50
     function _constructCanceledPayouts() internal pure returns (uint256[] memory) {
         uint256[] memory payouts = new uint256[](2);
         payouts[0] = 1;
@@ -42,6 +42,11 @@ library PayoutLib {
         return payouts;
     }
 
+    /// @notice Construct winner payouts
+    /// Based on the game ordering, consruct payouts
+    /// @param ordering - The ordering of the Game, Home vs Away or Away vs Home
+    /// @param home     - The score of the home team
+    /// @param away     - The score of the away team
     function _constructWinnerPayouts(Ordering ordering, uint32 home, uint32 away)
         internal
         pure
@@ -49,7 +54,7 @@ library PayoutLib {
     {
         uint256[] memory payouts = new uint256[](2);
         if (home == away) {
-            // Draw, [1, 1]
+            // Draw, [1, 1], exceedingly rare for most sports but for completeness
             payouts[0] = 1;
             payouts[1] = 1;
             return payouts;
@@ -84,7 +89,7 @@ library PayoutLib {
     }
 
     /// @notice Construct a payout vector for Spread Markets
-    /// @dev Spread markets are always ["Favorite", "Underdog"]
+    /// @notice Spread markets are always ["Favorite", "Underdog"]
     /// @dev Spread invariant: Underdog must win the game OR lose by the line or less to win
     function _constructSpreadsPayouts(uint32 home, uint32 away, uint256 line, Underdog underdog)
         internal
@@ -123,6 +128,10 @@ library PayoutLib {
 
     /// @notice Construct a payout vector for Totals Markets
     /// @dev Totals markets are always ["Over", "Under"]
+    /// @dev Totals invariant: Under wins if total score <= line
+    /// @param home     - The score of the home team
+    /// @param away     - The score of the away team
+    /// @param line     - The line of the Totals market
     function _constructTotalsPayouts(uint32 home, uint32 away, uint256 line) internal pure returns (uint256[] memory) {
         uint256[] memory payouts = new uint256[](2);
         uint256 total = uint256(home) + uint256(away);

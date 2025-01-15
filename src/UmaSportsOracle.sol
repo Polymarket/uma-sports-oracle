@@ -38,7 +38,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
                             CONSTANTS 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Unique query identifier to request multiple values from the OO
+    /// @notice Query identifier used to request multiple values from the OO
     /// https://github.com/UMAprotocol/UMIPs/blob/master/UMIPs/umip-183.md
     bytes32 public constant IDENTIFIER = "MULTIPLE_VALUES";
 
@@ -146,9 +146,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         if (gameData.state != GameState.Created) revert InvalidGame();
 
         // Validate the marketType and line
-        if (line > 0 && (marketType == MarketType.Winner)) {
-            revert InvalidLine();
-        }
+        if (line > 0 && (marketType == MarketType.Winner)) revert InvalidLine();
 
         marketId = keccak256(abi.encode(gameId, marketType, line, msg.sender));
 
@@ -321,11 +319,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
-        if (state != State.Requested) revert InvalidRequestState();
-
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
+
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
 
         // Update the bond amount in storage
         gameData.bond = bond;
@@ -342,11 +340,11 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
 
-        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
-        if (state != State.Requested) revert InvalidRequestState();
-
         // no-op if the liveness did not change
         if (liveness == gameData.liveness) return;
+
+        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        if (state != State.Requested) revert InvalidRequestState();
 
         // Update the liveness amount in storage
         gameData.liveness = liveness;
@@ -491,9 +489,10 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // If ignore, reset the game
         if (_isIgnore(data)) return _resetGame(gameId, gameData);
 
-        // Decode the scores from the OO data and set them in storage
+        // Decode the scores from the OO data
         (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(gameData.ordering, data);
 
+        // Update the scores in storage and update the state
         gameData.homeScore = home;
         gameData.awayScore = away;
         gameData.state = GameState.Settled;
@@ -507,7 +506,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Resets a Game by sending a new request to the OO
-    /// @dev We pay for this new request using the refunded reward that occurs on dispute
+    /// @dev We pay for this new request using the refunded reward that is transfered on dispute
     /// @param gameId       - The unique gameId
     /// @param gameData     - The GameData in storage
     function _resetGame(bytes32 gameId, GameData storage gameData) internal {
