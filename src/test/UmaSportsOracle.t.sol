@@ -744,7 +744,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_emergencyResolveMarket_revert_MarketCannotBeEmergencyResolved() public {
         test_resolveMarket_Winner();
-        
+
         bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
 
         uint256[] memory payouts = new uint256[](2);
