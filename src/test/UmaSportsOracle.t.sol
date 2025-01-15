@@ -71,7 +71,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(expectedAncillaryData, gameData.ancillaryData);
     }
 
-    function test_revert_createGameAlreadyCreated() public {
+    function test_createGame_revert_GameAlreadyCreated() public {
         test_createGame();
 
         vm.expectRevert(GameAlreadyCreated.selector);
@@ -79,14 +79,14 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.createGame(ancillaryData, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_revert_createGameUnsupportedToken() public {
+    function test_createGame_revert_UnsupportedToken() public {
         IAddressWhitelistMock(whitelist).setIsOnWhitelist(false);
 
         vm.expectRevert(UnsupportedToken.selector);
         oracle.createGame(ancillaryData, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
-    function test_revert_createGameInvalidAncillaryData() public {
+    function test_createGame_revert_InvalidAncillaryData() public {
         bytes memory data = hex"";
 
         vm.expectRevert(InvalidAncillaryData.selector);
@@ -730,6 +730,30 @@ contract UmaSportsOracleTest is OracleSetup {
 
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(uint8(MarketState.EmergencyResolved), uint8(marketData.state));
+    }
+
+    function test_admin_emergencyResolveMarket_revert_MarketDoesNotExist() public {
+        uint256[] memory payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;
+        vm.expectRevert(MarketDoesNotExist.selector);
+
+        vm.prank(admin);
+        oracle.emergencyResolveMarket(bytes32(0), payouts);
+    }
+
+    function test_admin_emergencyResolveMarket_revert_MarketCannotBeEmergencyResolved() public {
+        test_resolveMarket_Winner();
+        
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+
+        uint256[] memory payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;
+        vm.expectRevert(MarketCannotBeEmergencyResolved.selector);
+
+        vm.prank(admin);
+        oracle.emergencyResolveMarket(marketId, payouts);
     }
 
     function test_admin_setBond(uint256 bond) public {

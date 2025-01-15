@@ -234,6 +234,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     /// @notice Pauses a Game
     /// @dev Pausing a Game prevents it from settlement and allows it to be emergency settled
+    /// @dev GameState transition: Created -> Paused
     /// @param gameId - The unique game Id
     function pauseGame(bytes32 gameId) external onlyAdmin {
         GameData storage gameData = games[gameId];
@@ -246,6 +247,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Unpauses a Game
+    /// @dev GameState transition: Paused -> Created
     /// @param gameId - The unique game Id
     function unpauseGame(bytes32 gameId) external onlyAdmin {
         GameData storage gameData = games[gameId];
@@ -258,6 +260,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Emergency settles a Game
+    /// @dev GameState transition: Paused -> EmergencySettled
     /// @param gameId   - The unique game Id
     function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external onlyAdmin {
         GameData storage gameData = games[gameId];
@@ -273,6 +276,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Pauses a market which stops its resolution and allows it to be emergency resolved
+    /// @dev MarketState transition: Created -> Paused
     /// @param marketId - The unique market id
     function pauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
@@ -285,6 +289,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Unpauses a market
+    /// @dev MarketState transition: Paused -> Created
     /// @param marketId - The unique market id
     function unpauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
@@ -297,6 +302,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Emergency resolves a market according to the payout array
+    /// @dev MarketState transition: Paused -> EmergencyResolved
     /// @param marketId - The unique marketId
     /// @param payouts  - The payouts used to resolve the market
     function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
@@ -478,6 +484,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Settles a Game
+    /// @dev GameState transition: Created -> Settled
     /// @param gameId       - The unique gameId
     /// @param gameData     - The gameData in storage
     function _settle(bytes32 gameId, GameData storage gameData) internal {
@@ -500,6 +507,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         emit GameSettled(gameId, home, away);
     }
 
+    /// @notice Cancels a game, setting the state to Canceled
+    /// @dev GameState transition: Created -> Canceled
     function _cancelGame(bytes32 gameId, GameData storage gameData) internal {
         gameData.state = GameState.Canceled;
         emit GameCanceled(gameId);
@@ -530,6 +539,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     /// @notice Resolves a market
+    /// @dev MarketState transition: Created -> Resolved
     /// @param marketId - The unique Market Id
     /// @param gameData - The game data
     /// @param marketData - The market data
@@ -544,7 +554,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
             marketData.underdog
         );
 
-        // Set State to Resolved
         marketData.state = MarketState.Resolved;
 
         _reportPayouts(marketId, payouts);
