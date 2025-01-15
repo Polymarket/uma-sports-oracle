@@ -4,8 +4,8 @@ pragma solidity 0.8.27;
 import {Ordering} from "./Structs.sol";
 
 library ScoreDecoderLib {
-    uint256 constant SCORE_A_SLOT = 192;
-    uint256 constant SCORE_B_SLOT = 160;
+    uint256 internal constant SCORE_A_SLOT = 192;
+    uint256 internal constant SCORE_B_SLOT = 160;
 
     function decodeScores(Ordering ordering, int256 data) internal pure returns (uint32 home, uint32 away) {
         if (ordering == Ordering.HomeVsAway) {

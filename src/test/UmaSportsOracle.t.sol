@@ -83,7 +83,6 @@ contract UmaSportsOracleTest is OracleSetup {
         IAddressWhitelistMock(whitelist).setIsOnWhitelist(false);
 
         vm.expectRevert(UnsupportedToken.selector);
-        vm.prank(admin);
         oracle.createGame(ancillaryData, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
@@ -91,7 +90,6 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes memory data = hex"";
 
         vm.expectRevert(InvalidAncillaryData.selector);
-        vm.prank(admin);
         oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
     }
 
