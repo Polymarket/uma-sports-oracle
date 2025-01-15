@@ -318,7 +318,7 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     function setBond(bytes32 gameId, uint256 bond) external onlyAdmin {
         GameData storage gameData = games[gameId];
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
-        
+
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
 

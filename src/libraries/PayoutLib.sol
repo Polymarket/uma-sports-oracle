@@ -128,7 +128,7 @@ library PayoutLib {
 
     /// @notice Construct a payout vector for Totals Markets
     /// @dev Totals markets are always ["Over", "Under"]
-    /// @dev Totals invariant: Under wins if total score <= line 
+    /// @dev Totals invariant: Under wins if total score <= line
     /// @param home     - The score of the home team
     /// @param away     - The score of the away team
     /// @param line     - The line of the Totals market
