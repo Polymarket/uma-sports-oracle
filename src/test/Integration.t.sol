@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {OracleSetup} from "./dev/OracleSetup.sol";
 import {IOptimisticOracleV2Mock} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
-import {Ordering, Underdog} from "src/libraries/Structs.sol";
+import {Ordering, GameData, Underdog} from "src/libraries/Structs.sol";
 
 contract IntegrationTest is OracleSetup {
     function test_createGameAndResolveMarkets() public {
@@ -41,10 +41,8 @@ contract IntegrationTest is OracleSetup {
 
         // Push prices to the OO and settle the Game
         int256 price = encodeScores(101, 130, Ordering.HomeVsAway);
-        // Mock OO hasPrice and set the price
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
-        oracle.settleGame(gameId);
+        GameData memory gameData = oracle.getGame(gameId);
+        proposeAndSettle(price, gameData.timestamp, gameData.ancillaryData);
 
         // Resolve all the markets
         uint256[] memory payouts = new uint256[](2);

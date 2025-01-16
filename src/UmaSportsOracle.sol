@@ -8,11 +8,10 @@ import {ScoreDecoderLib} from "./libraries/ScoreDecoderLib.sol";
 import {AncillaryDataLib} from "./libraries/AncillaryDataLib.sol";
 import {Ordering, MarketType, MarketData, MarketState, GameState, GameData, Underdog} from "./libraries/Structs.sol";
 
-import {IFinder} from "./interfaces/IFinder.sol";
 import {IUmaSportsOracle} from "./interfaces/IUmaSportsOracle.sol";
 import {IAddressWhitelist} from "./interfaces/IAddressWhitelist.sol";
 import {IConditionalTokens} from "./interfaces/IConditionalTokens.sol";
-import {IOptimisticOracleV2, State} from "./interfaces/IOptimisticOracleV2.sol";
+import {IOptimisticOracleV2, IOptimisticRequester, State} from "./interfaces/IOptimisticOracleV2.sol";
 
 import {ERC20, SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +19,7 @@ import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.so
 /// @title UmaSportsOracle
 /// @notice Oracle contract for Sports games
 /// @author Jon Amenechi (jon@polymarket.com)
-contract UmaSportsOracle is IUmaSportsOracle, Auth {
+contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /*///////////////////////////////////////////////////////////////////
                             IMMUTABLES 
     //////////////////////////////////////////////////////////////////*/
@@ -52,11 +51,15 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Mapping of marketId to Markets
     mapping(bytes32 => MarketData) internal markets;
 
-    constructor(address _ctf, address _finder) {
+    modifier onlyOptimisticOracle() {
+        if (msg.sender != address(optimisticOracle)) revert NotOptimisticOracle();
+        _;
+    }
+
+    constructor(address _ctf, address _optimisticOracle, address _addressWhitelist) {
         ctf = IConditionalTokens(_ctf);
-        IFinder finder = IFinder(_finder);
-        optimisticOracle = IOptimisticOracleV2(finder.getImplementationAddress("OptimisticOracleV2"));
-        addressWhitelist = IAddressWhitelist(finder.getImplementationAddress("CollateralWhitelist"));
+        optimisticOracle = IOptimisticOracleV2(_optimisticOracle);
+        addressWhitelist = IAddressWhitelist(_addressWhitelist);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -163,23 +166,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         return marketId;
     }
 
-    /// @notice Settles a Game by fetching scores from the OO and setting them on the Oracle
-    /// @param gameId   - The unique GameId
-    function settleGame(bytes32 gameId) external {
-        GameData storage gameData = games[gameId];
-
-        // Ensure that the Game exists
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
-
-        // Only a Game in state Created can be settled
-        if (gameData.state != GameState.Created) revert GameCannotBeSettled();
-        // Can only settle a game with valid OO data
-        if (!_dataExists(gameData.timestamp, gameData.ancillaryData)) revert DataDoesNotExist();
-
-        // Settle the game
-        _settle(gameId, gameData);
-    }
-
     /// @notice Resolves a Market using the scores of a Settled Game
     /// @param marketId - The unique marketId
     function resolveMarket(bytes32 marketId) external {
@@ -196,6 +182,68 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
         // Resolve the Market
         _resolve(marketId, gameData, marketData);
+    }
+
+    /*///////////////////////////////////////////////////////////////////
+                            CALLBACKS 
+    //////////////////////////////////////////////////////////////////*/
+
+    /// @notice Callback to be executed on OO settlement
+    /// Settles the Game by setting the home and away scores
+    /// @param timestamp        - Timestamp of the Request
+    /// @param ancillaryData    - Ancillary data of the Request
+    /// @param price            - The price settled on the Request
+    function priceSettled(bytes32, uint256 timestamp, bytes memory ancillaryData, int256 price)
+        external
+        onlyOptimisticOracle
+    {
+        bytes32 gameId = keccak256(ancillaryData);
+        GameData storage gameData = games[gameId];
+
+        // Ensure the request timestamp matches Game timestamp.
+        // This ensures that only the Live OO request is relevant to the Oracle
+        if (gameData.timestamp != timestamp) {
+            return;
+        }
+
+        // No-op if the game is in any state other than Created, i.e EmergencySettled or Paused
+        if (gameData.state != GameState.Created) {
+            return;
+        }
+
+        // Settle the Game
+        _settle(price, gameId, gameData);
+    }
+
+    /// @notice Callback to be executed by the OO dispute.
+    /// Resets the Game by sending out a new price Request to the OO
+    /// @param timestamp        - Timestamp of the Request
+    /// @param ancillaryData    - Ancillary data of the request
+    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256)
+        external
+        onlyOptimisticOracle
+    {
+        bytes32 gameId = keccak256(ancillaryData);
+        GameData storage gameData = games[gameId];
+
+        // Ensure the request timestamp matches Game timestamp.
+        // This ensures that only the Live OO Request is relevant to the Oracle
+        if (gameData.timestamp != timestamp) {
+            return;
+        }
+
+        // No-op if the game is in any state other than Created, i.e EmergencySettled or Paused
+        if (gameData.state != GameState.Created) {
+            return;
+        }
+
+        // No-op if the Game has been reset before
+        if (gameData.reset) {
+            return;
+        }
+
+        // Reset the game
+        _resetGame(address(this), gameId, gameData);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -257,6 +305,17 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
         gameData.state = GameState.Created;
         emit GameUnpaused(gameId);
+    }
+
+    /// @notice Resets a Game, force sending a new request to the OO
+    /// @param gameId - The unique game Id
+    function resetGame(bytes32 gameId) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (gameData.state != GameState.Created) revert GameCannotBeReset();
+
+        _resetGame(msg.sender, gameId, gameData);
     }
 
     /// @notice Emergency settles a Game
@@ -413,7 +472,8 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
             liveness: liveness,
             ancillaryData: data,
             homeScore: 0,
-            awayScore: 0
+            awayScore: 0,
+            reset: false
         });
     }
 
@@ -470,6 +530,16 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
         // Send a request to the Optimistic oracle
         optimisticOracle.requestPrice(IDENTIFIER, timestamp, data, IERC20(token), reward);
 
+        // Set callbacks
+        optimisticOracle.setCallbacks(
+            IDENTIFIER,
+            timestamp,
+            data,
+            false, // DO NOT set callback on priceProposed
+            true, // DO set callback on priceDisputed
+            true // DO set callback on priceSettled
+        );
+
         // Ensure that request is event based
         // Event based ensures that:
         // 1. The timestamp at which the request is evaluated is the time of the proposal
@@ -485,16 +555,14 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     /// @notice Settles a Game
     /// @dev GameState transition: Created -> Settled
+    /// @param data         - The data provided by the OO
     /// @param gameId       - The unique gameId
     /// @param gameData     - The gameData in storage
-    function _settle(bytes32 gameId, GameData storage gameData) internal {
-        // Get the data from the OO
-        int256 data = optimisticOracle.settleAndGetPrice(IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
-
-        // If cancelled, cancel the game
+    function _settle(int256 data, bytes32 gameId, GameData storage gameData) internal {
+        // If canceled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
         // If ignore, reset the game
-        if (_isIgnore(data)) return _resetGame(gameId, gameData);
+        if (_isIgnore(data)) return _resetGame(address(this), gameId, gameData);
 
         // Decode the scores from the OO data
         (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(gameData.ordering, data);
@@ -516,17 +584,19 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
     /// @notice Resets a Game by sending a new request to the OO
     /// @dev We pay for this new request using the refunded reward that is transfered on dispute
+    /// @param requestor    - The address requesting the reset
     /// @param gameId       - The unique gameId
     /// @param gameData     - The GameData in storage
-    function _resetGame(bytes32 gameId, GameData storage gameData) internal {
+    function _resetGame(address requestor, bytes32 gameId, GameData storage gameData) internal {
         uint256 timestamp = block.timestamp;
 
         // Update the request timestamp
+        gameData.reset = true;
         gameData.timestamp = timestamp;
 
         // Send out a new data request
         _requestData(
-            address(this),
+            requestor,
             timestamp,
             gameData.ancillaryData,
             gameData.token,
@@ -570,7 +640,6 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     }
 
     function _ready(GameData storage gameData) internal view returns (bool) {
-        if (gameData.state != GameState.Created) return false;
         return _dataExists(gameData.timestamp, gameData.ancillaryData);
     }
 

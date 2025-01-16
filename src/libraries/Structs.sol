@@ -11,7 +11,7 @@ enum GameState {
     Created,
     // Set when data is received from the OO and scores are updated
     Settled,
-    // Set when the Game is canceled or delayed
+    // Set when the Game is canceled
     Canceled,
     // Set when the Game is paused
     Paused,
@@ -43,6 +43,8 @@ struct GameData {
     uint256 timestamp;
     // The ancillary data for the Game
     bytes ancillaryData;
+    // Flag indicating that the Game has been reset
+    bool reset;
 }
 
 enum MarketType {
