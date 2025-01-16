@@ -280,11 +280,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
                             ADMIN 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Resets a Game
-    function resetGame(bytes32 gameId) external onlyAdmin {
-        // TODO
-    }
-
     /// @notice Pauses a Game
     /// @dev Pausing a Game prevents it from settlement and allows it to be emergency settled
     /// @dev GameState transition: Created -> Paused
@@ -310,6 +305,17 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         gameData.state = GameState.Created;
         emit GameUnpaused(gameId);
+    }
+
+    /// @notice Resets a Game, force sending a new request to the OO
+    /// @param gameId - The unique game Id
+    function resetGame(bytes32 gameId) external onlyAdmin {
+        GameData storage gameData = games[gameId];
+
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (gameData.state != GameState.Created) revert GameCannotBeReset();
+
+        _resetGame(msg.sender, gameId, gameData);
     }
 
     /// @notice Emergency settles a Game

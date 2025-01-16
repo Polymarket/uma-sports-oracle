@@ -27,6 +27,7 @@ abstract contract TestHelper is Test {
         vm.warp(block.timestamp + tsDelta);
     }
 
+    // TODO: umip encoding is changing. Update
     function encodeScores(uint32 home, uint32 away, Ordering ordering) internal pure returns (int256) {
         if (ordering == Ordering.HomeVsAway) {
             return int256(uint256(0)) << 224 | int256(uint256(home)) << 192 | int256(uint256(away)) << 160;

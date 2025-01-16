@@ -27,8 +27,6 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 liveness = 0;
         Ordering ordering = Ordering.HomeVsAway;
 
-        deal(usdc, admin, reward);
-
         vm.expectEmit();
         emit GameCreated(gameId, appendedAncillaryData, block.timestamp);
 
@@ -94,14 +92,6 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidAncillaryData.selector);
         oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
-    }
-
-    function test_priceSettled() public {
-        // TODO
-    }
-
-    function test_priceDisputed() public {
-        // TODO
     }
 
     function test_createMarket_Winner() public {
@@ -721,5 +711,173 @@ contract UmaSportsOracleTest is OracleSetup {
 
         GameData memory gameData = oracle.getGame(gameId);
         assertEq(liveness, gameData.liveness);
+    }
+
+    function test_admin_resetGame() public {
+        test_createGame();
+
+        fastForward(10);
+
+        vm.expectEmit();
+        emit GameReset(gameId);
+
+        vm.prank(admin);
+        oracle.resetGame(gameId);
+    }
+
+    function test_admin_resetGame_GameDoesNotExist() public {
+        vm.expectRevert(GameDoesNotExist.selector);
+        vm.prank(admin);
+        oracle.resetGame(gameId);
+    }
+
+    function test_admin_resetGame_GameCannotBeReset() public {
+        test_priceSettled(101, 133);
+        vm.expectRevert(GameCannotBeReset.selector);
+
+        vm.prank(admin);
+        oracle.resetGame(gameId);
+    }
+
+    function test_priceSettled(uint32 home, uint32 away) public {
+        test_createGame();
+
+        // Propose a price and settle it on the OO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        emit GameSettled(gameId, home, away);
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
+
+        // Verify state post settlement
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+        assertEq(home, gameData.homeScore);
+        assertEq(away, gameData.awayScore);
+    }
+
+    function test_priceDisputed_singleDispute(uint32 home, uint32 away) public {
+        test_createGame();
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 initialTimestamp = gameData.timestamp;
+        bytes memory ancData = gameData.ancillaryData;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // propose
+        propose(data, initialTimestamp, ancData);
+
+        // Dispute it
+        dispute(initialTimestamp, ancData);
+
+        // Verify state
+        // We expect to have a new OO request with on the oracle
+        gameData = oracle.getGame(gameId);
+        assertTrue(gameData.timestamp > initialTimestamp);
+        assertTrue(gameData.reset);
+    }
+
+    function test_priceDisputed_doubleDispute_validData(uint32 home, uint32 away) public {
+        test_createGame();
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 initialTimestamp = gameData.timestamp;
+        bytes memory ancData = gameData.ancillaryData;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // propose and dispute it
+        propose(data, initialTimestamp, ancData);
+        dispute(initialTimestamp, ancData);
+
+        // propose and dispute it again, pushing resolution to the DVM
+        gameData = oracle.getGame(gameId);
+        propose(data, gameData.timestamp, gameData.ancillaryData);
+        dispute(gameData.timestamp, gameData.ancillaryData);
+        gameData = oracle.getGame(gameId);
+
+        // Push the score to the DVM
+        voting.setPriceExists(true);
+        voting.setPrice(data);
+
+        // Settle the Game, updating the scores
+        vm.expectEmit();
+        emit GameSettled(gameId, home, away);
+        
+        settle(gameData.timestamp, gameData.ancillaryData);
+        
+        gameData = oracle.getGame(gameId);
+
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+        assertEq(home, gameData.homeScore);
+        assertEq(away, gameData.awayScore);
+    }
+
+    function test_priceDisputed_doubleDispute_ignore(uint32 home, uint32 away) public {
+        test_createGame();
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 initialTimestamp = gameData.timestamp;
+        bytes memory ancData = gameData.ancillaryData;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // propose and dispute it
+        propose(data, initialTimestamp, ancData);
+        dispute(initialTimestamp, ancData);
+
+        // propose and dispute it again, pushing resolution to the DVM
+        gameData = oracle.getGame(gameId);
+        propose(data, gameData.timestamp, gameData.ancillaryData);
+        dispute(gameData.timestamp, gameData.ancillaryData);
+        gameData = oracle.getGame(gameId);
+
+        // Push the ignore data to the DVM
+        voting.setPriceExists(true);
+        voting.setPrice(type(int256).min);
+
+        // Settle the Game, since the data is the ignore data, should reset the game
+        vm.expectEmit();
+        emit GameReset(gameId);
+        
+        settle(gameData.timestamp, gameData.ancillaryData);
+        
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Created), uint8(gameData.state));
+    }
+
+    function test_priceDisputed_doubleDispute_canceled(uint32 home, uint32 away) public {
+        test_createGame();
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 initialTimestamp = gameData.timestamp;
+        bytes memory ancData = gameData.ancillaryData;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // propose and dispute it
+        propose(data, initialTimestamp, ancData);
+        dispute(initialTimestamp, ancData);
+
+        // propose and dispute it again, pushing resolution to the DVM
+        gameData = oracle.getGame(gameId);
+        propose(data, gameData.timestamp, gameData.ancillaryData);
+        dispute(gameData.timestamp, gameData.ancillaryData);
+        gameData = oracle.getGame(gameId);
+
+        // Push the canceled data to the DVM
+        voting.setPriceExists(true);
+        voting.setPrice(type(int256).max);
+
+        // Settle the Game, since the data is the canceled data, should set the Game to canceled
+        vm.expectEmit();
+        emit GameCanceled(gameId);
+        
+        settle(gameData.timestamp, gameData.ancillaryData);
+        
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Canceled), uint8(gameData.state));
     }
 }

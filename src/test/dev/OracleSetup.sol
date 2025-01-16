@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-// TODO
-import {console2 as console} from "lib/forge-std/src/Test.sol";
-
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
@@ -51,11 +48,15 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         admin = alice;
         proposer = brian;
         disputer = carla;
+        vm.label(admin, "Admin");
+        vm.label(proposer, "Proposer");
+        vm.label(disputer, "Disputer");
 
         appendedAncillaryData = AncillaryDataLib.appendAncillaryData(admin, ancillaryData);
         gameId = keccak256(appendedAncillaryData);
         ctf = DeployLib.deployConditionalTokens();
         usdc = address(new USDC());
+        vm.label(usdc, "USDC");
 
         whitelist = address(new AddressWhitelist());
         // optimisticOracle = address(new OptimisticOracleV2());
@@ -72,12 +73,15 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         finder.changeImplementationAddress("CollateralWhitelist", whitelist);
         finder.changeImplementationAddress("Oracle", address(voting));
 
-        // Deal the proposer and disputer USDC and approve the OO
+        // Deal the addresses USDC and approve the OO
         deal(usdc, proposer, 1_000_000_000_000);
         deal(usdc, disputer, 1_000_000_000_000);
+        deal(usdc, admin, 1_000_000_000_000);
         vm.prank(proposer);
         IERC20(usdc).approve(optimisticOracle, type(uint256).max);
         vm.prank(disputer);
+        IERC20(usdc).approve(optimisticOracle, type(uint256).max);
+        vm.prank(admin);
         IERC20(usdc).approve(optimisticOracle, type(uint256).max);
 
         vm.startPrank(admin);

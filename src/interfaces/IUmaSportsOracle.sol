@@ -34,6 +34,8 @@ interface IUmaSportsOracleEE {
 
     error NotOptimisticOracle();
 
+    error GameCannotBeReset();
+
     /// @notice Emitted when a Game is created
     event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
 
@@ -104,6 +106,8 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
     function pauseGame(bytes32 gameId) external;
 
     function unpauseGame(bytes32 gameId) external;
+
+    function resetGame(bytes32 gameId) external;
 
     function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external;
 
