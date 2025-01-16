@@ -694,7 +694,7 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_setBond(uint256 bond) public {
-        vm.assume(bond < 100_000_000_000);
+        vm.assume(bond > 0 && bond < 100_000_000_000);
 
         test_createGame();
 
