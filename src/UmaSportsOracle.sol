@@ -205,18 +205,62 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
                             CALLBACKS 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Callback which is executed on settlement
-    /// Resets the question and sends out a new price request to the OO
-    /// @param ancillaryData    - Ancillary data of the request
-    function priceSettled(bytes32, uint256, bytes memory ancillaryData, int256 price) external onlyOptimisticOracle {
-        // TODO
+    /// @notice Callback to be executed on OO settlement
+    /// Settles the Game by setting the home and away scores
+    /// @param timestamp        - Timestamp of the Request
+    /// @param ancillaryData    - Ancillary data of the Request
+    /// @param price            - The price settled on the Request
+    function priceSettled(bytes32, uint256 timestamp, bytes memory ancillaryData, int256 price)
+        external
+        onlyOptimisticOracle
+    {
+        bytes32 gameId = keccak256(ancillaryData);
+        GameData storage gameData = games[gameId];
+
+        // Ensure the request timestamp matches Game timestamp.
+        // This ensures that only the Live OO request is relevant to the Oracle
+        if (gameData.timestamp != timestamp) {
+            return;
+        }
+
+        // No-op if the game is in any state other than Created, i.e EmergencySettled or Paused
+        if (gameData.state != GameState.Created) {
+            return;
+        }
+
+        // Settle the Game
+        _settle(price, gameId, gameData);
     }
 
-    /// @notice Callback which is executed on dispute
-    /// Resets the question and sends out a new price request to the OO
+    /// @notice Callback to be executed by the OO dispute.
+    /// Resets the Game by sending out a new price Request to the OO
+    /// @param timestamp        - Timestamp of the Request
     /// @param ancillaryData    - Ancillary data of the request
-    function priceDisputed(bytes32, uint256, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
-        // TODO
+    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256)
+        external
+        onlyOptimisticOracle
+    {
+        bytes32 gameId = keccak256(ancillaryData);
+        GameData storage gameData = games[gameId];
+
+        // Ensure the request timestamp matches Game timestamp.
+        // This ensures that only the Live OO Request is relevant to the Oracle
+        if (gameData.timestamp != timestamp) {
+            return;
+        }
+
+        // No-op if the game is in any state other than Created, i.e EmergencySettled or Paused
+        if (gameData.state != GameState.Created) {
+            return;
+        }
+
+        // No-op if the Game has been reset before
+        if (gameData.reset) {
+            return;
+        }
+
+        // Reset the game
+        _resetGame(gameId, gameData);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -252,6 +296,11 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /*///////////////////////////////////////////////////////////////////
                             ADMIN 
     //////////////////////////////////////////////////////////////////*/
+
+    /// @notice Resets a Game
+    function resetGame(bytes32 gameId) external onlyAdmin {
+        // TODO
+    }
 
     /// @notice Pauses a Game
     /// @dev Pausing a Game prevents it from settlement and allows it to be emergency settled
@@ -491,6 +540,16 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // Send a request to the Optimistic oracle
         optimisticOracle.requestPrice(IDENTIFIER, timestamp, data, IERC20(token), reward);
 
+        // Set callbacks
+        optimisticOracle.setCallbacks(
+            YES_OR_NO_IDENTIFIER,
+            requestTimestamp,
+            ancillaryData,
+            false, // DO NOT set callback on priceProposed
+            true, // DO set callback on priceDisputed
+            true // DO set callback on priceSettled
+        );
+
         // Ensure that request is event based
         // Event based ensures that:
         // 1. The timestamp at which the request is evaluated is the time of the proposal
@@ -506,13 +565,11 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     /// @notice Settles a Game
     /// @dev GameState transition: Created -> Settled
+    /// @param data         - The data provided by the OO
     /// @param gameId       - The unique gameId
     /// @param gameData     - The gameData in storage
-    function _settle(bytes32 gameId, GameData storage gameData) internal {
-        // Get the data from the OO
-        int256 data = optimisticOracle.settleAndGetPrice(IDENTIFIER, gameData.timestamp, gameData.ancillaryData);
-
-        // If cancelled, cancel the game
+    function _settle(int256 data, bytes32 gameId, GameData storage gameData) internal {
+        // If canceled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
         // If ignore, reset the game
         if (_isIgnore(data)) return _resetGame(gameId, gameData);
@@ -537,17 +594,19 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     /// @notice Resets a Game by sending a new request to the OO
     /// @dev We pay for this new request using the refunded reward that is transfered on dispute
+    /// @param requestor    - The address requesting the reset
     /// @param gameId       - The unique gameId
     /// @param gameData     - The GameData in storage
-    function _resetGame(bytes32 gameId, GameData storage gameData) internal {
+    function _resetGame(address requestor, bytes32 gameId, GameData storage gameData) internal {
         uint256 timestamp = block.timestamp;
 
         // Update the request timestamp
+        gameData.reset = true;
         gameData.timestamp = timestamp;
 
         // Send out a new data request
         _requestData(
-            address(this),
+            requestor,
             timestamp,
             gameData.ancillaryData,
             gameData.token,

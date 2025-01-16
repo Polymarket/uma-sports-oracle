@@ -26,7 +26,7 @@ In short:
     - Creates a Market on the contract if it does not already exist
 - Once score data is available, proposers will:
     - Fetch the scores for the home and away teams respectively
-    - Encode the scores and other data(e.g if the game was canceled/delayed) according to UMIP 183
+    - Encode the scores or other data(e.g if the game was canceled) according to UMIP 183
     - Propose this value on the OO
 - OO disputers can challenge this value with a bond etc and escalate to the UMA DVM
 - Once the value goes through the DVM, anyone can call `settleGame` for a Game which will:
