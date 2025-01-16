@@ -166,23 +166,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         return marketId;
     }
 
-    /// @notice Settles a Game by fetching scores from the OO and setting them on the Oracle
-    /// @param gameId   - The unique GameId
-    function settleGame(bytes32 gameId) external {
-        GameData storage gameData = games[gameId];
-
-        // Ensure that the Game exists
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
-
-        // Only a Game in state Created can be settled
-        if (gameData.state != GameState.Created) revert GameCannotBeSettled();
-        // Can only settle a game with valid OO data
-        if (!_dataExists(gameData.timestamp, gameData.ancillaryData)) revert DataDoesNotExist();
-
-        // Settle the game
-        _settle(gameId, gameData);
-    }
-
     /// @notice Resolves a Market using the scores of a Settled Game
     /// @param marketId - The unique marketId
     function resolveMarket(bytes32 marketId) external {
@@ -260,7 +243,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         }
 
         // Reset the game
-        _resetGame(gameId, gameData);
+        _resetGame(address(this), gameId, gameData);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -483,7 +466,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
             liveness: liveness,
             ancillaryData: data,
             homeScore: 0,
-            awayScore: 0
+            awayScore: 0,
+            reset: false
         });
     }
 
@@ -542,9 +526,9 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         // Set callbacks
         optimisticOracle.setCallbacks(
-            YES_OR_NO_IDENTIFIER,
-            requestTimestamp,
-            ancillaryData,
+            IDENTIFIER,
+            timestamp,
+            data,
             false, // DO NOT set callback on priceProposed
             true, // DO set callback on priceDisputed
             true // DO set callback on priceSettled
@@ -572,7 +556,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // If canceled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
         // If ignore, reset the game
-        if (_isIgnore(data)) return _resetGame(gameId, gameData);
+        if (_isIgnore(data)) return _resetGame(address(this), gameId, gameData);
 
         // Decode the scores from the OO data
         (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(gameData.ordering, data);

@@ -44,7 +44,9 @@ contract IntegrationTest is OracleSetup {
         // Mock OO hasPrice and set the price
         IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
-        oracle.settleGame(gameId);
+        
+        // TODO
+        // oracle.settleGame(gameId);
 
         // Resolve all the markets
         uint256[] memory payouts = new uint256[](2);

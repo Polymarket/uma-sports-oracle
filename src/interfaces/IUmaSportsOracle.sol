@@ -99,8 +99,6 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
         external
         returns (bytes32);
 
-    function settleGame(bytes32 gameId) external;
-
     function resolveMarket(bytes32 marketId) external;
 
     function pauseGame(bytes32 gameId) external;

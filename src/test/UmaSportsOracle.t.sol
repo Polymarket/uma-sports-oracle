@@ -246,94 +246,6 @@ contract UmaSportsOracleTest is OracleSetup {
         assertTrue(oracle.ready(gameId));
     }
 
-    function test_settleGame(uint32 home, uint32 away) public {
-        test_createGame();
-
-        int256 price = encodeScores(home, away, Ordering.HomeVsAway);
-        // Mock OO hasPrice and set the price
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
-
-        vm.expectEmit();
-        emit GameSettled(gameId, home, away);
-
-        oracle.settleGame(gameId);
-
-        // Assert the state post settlement
-        GameData memory gameData = oracle.getGame(gameId);
-        assertEq(uint8(GameState.Settled), uint8(gameData.state));
-        assertEq(home, gameData.homeScore);
-        assertEq(away, gameData.awayScore);
-    }
-
-    function test_settleGameCanceled() public {
-        test_createGame();
-
-        // Set price to Cancel price accoring to the MULTIPLE_VALUES UMIP
-        int256 price = type(int256).max;
-        // Mock OO hasPrice and set the price
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
-
-        vm.expectEmit();
-        emit GameCanceled(gameId);
-
-        oracle.settleGame(gameId);
-
-        // Assert the state post settlement
-        GameData memory gameData = oracle.getGame(gameId);
-        assertEq(uint8(GameState.Canceled), uint8(gameData.state));
-        assertEq(uint32(0), gameData.homeScore);
-        assertEq(uint32(0), gameData.awayScore);
-    }
-
-    function test_settleGameIgnore() public {
-        test_createGame();
-
-        fastForward(2);
-
-        // Set price to Ignore price accoring to the MULTIPLE_VALUES UMIP
-        int256 price = type(int256).min;
-        // Mock OO hasPrice and set the price
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(price);
-
-        // Deal the oracle some reward tokens to simulate the refund that occurs on dispute
-        deal(usdc, address(oracle), uint256(1_000_000));
-
-        vm.expectEmit();
-        emit GameReset(gameId);
-
-        oracle.settleGame(gameId);
-
-        uint256 timestamp = block.timestamp;
-
-        // Assert state post settlement
-        GameData memory gameData = oracle.getGame(gameId);
-        assertEq(uint8(GameState.Created), uint8(gameData.state));
-        assertEq(timestamp, gameData.timestamp);
-        assertEq(uint32(0), gameData.homeScore);
-        assertEq(uint32(0), gameData.awayScore);
-    }
-
-    function test_settleGame_revert_GameDoesNotExist() public {
-        vm.expectRevert(GameDoesNotExist.selector);
-        oracle.settleGame(gameId);
-    }
-
-    function test_settleGame_revert_GameCannotBeSettled() public {
-        test_settleGame(132, 100);
-        vm.expectRevert(GameCannotBeSettled.selector);
-        oracle.settleGame(gameId);
-    }
-
-    function test_settleGame_revert_DataDoesNotExist() public {
-        test_createGame();
-        vm.expectRevert(DataDoesNotExist.selector);
-
-        oracle.settleGame(gameId);
-    }
-
     function test_resolveMarket_Winner() public {
         test_createGame();
 
@@ -349,7 +261,7 @@ contract UmaSportsOracleTest is OracleSetup {
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
 
         // settle the game
-        oracle.settleGame(gameId);
+        // oracle.settleGame(gameId); // TODO
 
         // Home win on a Home vs Away Game: [1,0]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -390,8 +302,8 @@ contract UmaSportsOracleTest is OracleSetup {
         IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
 
-        // settle the game
-        oracle.settleGame(gameId);
+        // settle the game 
+        // oracle.settleGame(gameId); TODO
 
         // Underdog Home loss within spread, Underdog win: [0,1]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -433,7 +345,7 @@ contract UmaSportsOracleTest is OracleSetup {
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
 
         // settle the game
-        oracle.settleGame(gameId);
+        // oracle.settleGame(gameId); // TODO
 
         // total <= line, under wins: [0,1]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -473,7 +385,7 @@ contract UmaSportsOracleTest is OracleSetup {
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
 
         // settle the game
-        oracle.settleGame(gameId);
+        // oracle.settleGame(gameId); // TODO
 
         // Home win: [1,0,0]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -541,7 +453,7 @@ contract UmaSportsOracleTest is OracleSetup {
         IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
 
         // settle the game
-        oracle.settleGame(gameId);
+        // oracle.settleGame(gameId); // TODO
 
         oracle.resolveMarket(marketId);
 
@@ -587,7 +499,7 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_pauseGame_revert_GameCannotBePaused() public {
-        test_settleGame(101, 133);
+        // test_settleGame(101, 133); // TODO
         vm.expectRevert(GameCannotBePaused.selector);
         vm.prank(admin);
         oracle.pauseGame(gameId);
@@ -647,7 +559,7 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_unpauseGame_revert_GameCannotBeUnpaused() public {
-        test_settleGame(101, 133);
+        // test_settleGame(101, 133); // TODO
         vm.expectRevert(GameCannotBeUnpaused.selector);
 
         vm.prank(admin);
