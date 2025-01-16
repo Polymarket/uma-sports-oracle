@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+// TODO
+import {console2 as console} from "lib/forge-std/src/Test.sol";
+
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
@@ -13,7 +16,6 @@ import {IOptimisticOracleV2} from "src/interfaces/IOptimisticOracleV2.sol";
 
 import {IERC20} from "../interfaces/IERC20.sol";
 
-
 import {USDC} from "../mocks/USDC.sol";
 import {Store} from "../mocks/Store.sol";
 import {Finder} from "../mocks/Finder.sol";
@@ -25,25 +27,33 @@ import {IdentifierWhitelist} from "../mocks/IdentifierWhitelist.sol";
 import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
 
 abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
-    address public admin = alice;
-    address public proposer = brian;
-    address public disputer = carla;
-    UmaSportsOracle public oracle;
+    address public admin;
+    address public proposer;
+    address public disputer;
+
     address public usdc;
     address public ctf;
     address public whitelist;
     address public optimisticOracle;
     Voting public voting;
 
+    UmaSportsOracle public oracle;
+
     bytes public constant ancillaryData =
         hex"7b277469746c65273a202757696c6c206974207261696e20696e204e5943206f6e204672696461793f272c202764657363273a202757696c6c206974207261696e20696e204e5943206f6e204672696461793f277d";
 
-    bytes public appendedAncillaryData = AncillaryDataLib.appendAncillaryData(admin, ancillaryData);
-    bytes32 public gameId = keccak256(appendedAncillaryData);
+    bytes public appendedAncillaryData;
+    bytes32 public gameId;
 
     bytes32 public identifier = "MULTIPLE_VALUES";
 
     function setUp() public {
+        admin = alice;
+        proposer = brian;
+        disputer = carla;
+
+        appendedAncillaryData = AncillaryDataLib.appendAncillaryData(admin, ancillaryData);
+        gameId = keccak256(appendedAncillaryData);
         ctf = DeployLib.deployConditionalTokens();
         usdc = address(new USDC());
 
@@ -61,6 +71,14 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         finder.changeImplementationAddress("OptimisticOracleV2", optimisticOracle);
         finder.changeImplementationAddress("CollateralWhitelist", whitelist);
         finder.changeImplementationAddress("Oracle", address(voting));
+
+        // Deal the proposer and disputer USDC and approve the OO
+        deal(usdc, proposer, 1_000_000_000_000);
+        deal(usdc, disputer, 1_000_000_000_000);
+        vm.prank(proposer);
+        IERC20(usdc).approve(optimisticOracle, type(uint256).max);
+        vm.prank(disputer);
+        IERC20(usdc).approve(optimisticOracle, type(uint256).max);
 
         vm.startPrank(admin);
         oracle = new UmaSportsOracle(ctf, optimisticOracle, whitelist);

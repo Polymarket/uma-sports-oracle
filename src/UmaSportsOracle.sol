@@ -634,7 +634,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     function _ready(GameData storage gameData) internal view returns (bool) {
-        if (gameData.state != GameState.Created) return false;
         return _dataExists(gameData.timestamp, gameData.ancillaryData);
     }
 

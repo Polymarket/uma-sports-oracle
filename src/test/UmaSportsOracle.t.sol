@@ -45,6 +45,9 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_createGame_fuzz(uint256 _reward, uint256 _bond, uint256 _liveness, uint8 _ordering, uint256 _data)
         public
     {
+        vm.assume(_liveness < 5200 weeks);
+        vm.assume(_bond < 100_000_000_000);
+
         _ordering = uint8(bound(_ordering, 0, 1));
         Ordering ordering = Ordering(_ordering);
 
@@ -91,6 +94,14 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidAncillaryData.selector);
         oracle.createGame(data, Ordering.HomeVsAway, usdc, 1_000_000, 100_000_000, 0);
+    }
+
+    function test_priceSettled() public {
+        // TODO
+    }
+
+    function test_priceDisputed() public {
+        // TODO
     }
 
     function test_createMarket_Winner() public {
@@ -241,8 +252,11 @@ contract UmaSportsOracleTest is OracleSetup {
 
         assertFalse(oracle.ready(gameId));
 
-        // Mock OO hasPrice
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
+        // Push price to the OO
+        GameData memory gameData = oracle.getGame(gameId);
+        int256 data = encodeScores(101, 133, Ordering.HomeVsAway);
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
+
         assertTrue(oracle.ready(gameId));
     }
 
@@ -257,11 +271,9 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 marketId = oracle.createWinnerMarket(gameId);
 
         // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game
-        // oracle.settleGame(gameId); // TODO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        proposeAndSettle(score, gameData.timestamp, gameData.ancillaryData);
 
         // Home win on a Home vs Away Game: [1,0]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -274,6 +286,8 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(0, marketData.line);
@@ -299,11 +313,9 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game 
-        // oracle.settleGame(gameId); TODO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        proposeAndSettle(score, gameData.timestamp, gameData.ancillaryData);
 
         // Underdog Home loss within spread, Underdog win: [0,1]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -316,6 +328,9 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(line, marketData.line);
@@ -341,11 +356,9 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game
-        // oracle.settleGame(gameId); // TODO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        proposeAndSettle(score, gameData.timestamp, gameData.ancillaryData);
 
         // total <= line, under wins: [0,1]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -358,6 +371,9 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(line, marketData.line);
@@ -381,11 +397,9 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 marketId = oracle.createWinnerMarket(gameId);
 
         // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game
-        // oracle.settleGame(gameId); // TODO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        proposeAndSettle(score, gameData.timestamp, gameData.ancillaryData);
 
         // Home win: [1,0,0]
         uint256[] memory expectedPayouts = new uint256[](2);
@@ -398,6 +412,9 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(0, marketData.line);
@@ -449,15 +466,16 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
         // Push score data to the OO
-        IOptimisticOracleV2Mock(optimisticOracle).setHasPrice(true);
-        IOptimisticOracleV2Mock(optimisticOracle).setPrice(score);
-
-        // settle the game
-        // oracle.settleGame(gameId); // TODO
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+        proposeAndSettle(score, gameData.timestamp, gameData.ancillaryData);
 
         oracle.resolveMarket(marketId);
 
         // Verify post resolution state
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+
         MarketData memory marketData = oracle.getMarket(marketId);
         assertEq(gameId, marketData.gameId);
         assertEq(line, marketData.line);
@@ -499,7 +517,11 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_pauseGame_revert_GameCannotBePaused() public {
-        // test_settleGame(101, 133); // TODO
+        test_createGame();
+        GameData memory gameData = oracle.getGame(gameId);
+        int256 data = encodeScores(101, 133, Ordering.HomeVsAway);
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
+
         vm.expectRevert(GameCannotBePaused.selector);
         vm.prank(admin);
         oracle.pauseGame(gameId);
@@ -559,7 +581,10 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_unpauseGame_revert_GameCannotBeUnpaused() public {
-        // test_settleGame(101, 133); // TODO
+        test_createGame();
+        GameData memory gameData = oracle.getGame(gameId);
+        int256 data = encodeScores(101, 133, Ordering.HomeVsAway);
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
         vm.expectRevert(GameCannotBeUnpaused.selector);
 
         vm.prank(admin);
@@ -669,10 +694,9 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_setBond(uint256 bond) public {
-        vm.assume(bond != 100_000_000);
-        test_createGame();
+        vm.assume(bond < 100_000_000_000);
 
-        IOptimisticOracleV2Mock(optimisticOracle).setState(State.Requested);
+        test_createGame();
 
         vm.expectEmit();
         emit BondUpdated(gameId, bond);
@@ -685,10 +709,9 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_admin_setLiveness(uint256 liveness) public {
-        vm.assume(liveness > 0);
-        test_createGame();
+        vm.assume(liveness > 0 && liveness < 5200 weeks);
 
-        IOptimisticOracleV2Mock(optimisticOracle).setState(State.Requested);
+        test_createGame();
 
         vm.expectEmit();
         emit LivenessUpdated(gameId, liveness);
