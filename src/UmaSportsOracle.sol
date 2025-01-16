@@ -8,11 +8,10 @@ import {ScoreDecoderLib} from "./libraries/ScoreDecoderLib.sol";
 import {AncillaryDataLib} from "./libraries/AncillaryDataLib.sol";
 import {Ordering, MarketType, MarketData, MarketState, GameState, GameData, Underdog} from "./libraries/Structs.sol";
 
-import {IFinder} from "./interfaces/IFinder.sol";
 import {IUmaSportsOracle} from "./interfaces/IUmaSportsOracle.sol";
 import {IAddressWhitelist} from "./interfaces/IAddressWhitelist.sol";
 import {IConditionalTokens} from "./interfaces/IConditionalTokens.sol";
-import {IOptimisticOracleV2, State} from "./interfaces/IOptimisticOracleV2.sol";
+import {IOptimisticOracleV2, IOptimisticRequester, State} from "./interfaces/IOptimisticOracleV2.sol";
 
 import {ERC20, SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +19,7 @@ import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.so
 /// @title UmaSportsOracle
 /// @notice Oracle contract for Sports games
 /// @author Jon Amenechi (jon@polymarket.com)
-contract UmaSportsOracle is IUmaSportsOracle, Auth {
+contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /*///////////////////////////////////////////////////////////////////
                             IMMUTABLES 
     //////////////////////////////////////////////////////////////////*/
@@ -52,11 +51,15 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
     /// @notice Mapping of marketId to Markets
     mapping(bytes32 => MarketData) internal markets;
 
-    constructor(address _ctf, address _finder) {
+    modifier onlyOptimisticOracle() {
+        if (msg.sender != address(optimisticOracle)) revert NotOptimisticOracle();
+        _;
+    }
+
+    constructor(address _ctf, address _optimisticOracle, address _addressWhitelist) {
         ctf = IConditionalTokens(_ctf);
-        IFinder finder = IFinder(_finder);
-        optimisticOracle = IOptimisticOracleV2(finder.getImplementationAddress("OptimisticOracleV2"));
-        addressWhitelist = IAddressWhitelist(finder.getImplementationAddress("CollateralWhitelist"));
+        optimisticOracle = IOptimisticOracleV2(_optimisticOracle);
+        addressWhitelist = IAddressWhitelist(_addressWhitelist);
     }
 
     /*///////////////////////////////////////////////////////////////////
@@ -196,6 +199,24 @@ contract UmaSportsOracle is IUmaSportsOracle, Auth {
 
         // Resolve the Market
         _resolve(marketId, gameData, marketData);
+    }
+
+    /*///////////////////////////////////////////////////////////////////
+                            CALLBACKS 
+    //////////////////////////////////////////////////////////////////*/
+
+    /// @notice Callback which is executed on settlement
+    /// Resets the question and sends out a new price request to the OO
+    /// @param ancillaryData    - Ancillary data of the request
+    function priceSettled(bytes32, uint256, bytes memory ancillaryData, int256 price) external onlyOptimisticOracle {
+        // TODO
+    }
+
+    /// @notice Callback which is executed on dispute
+    /// Resets the question and sends out a new price request to the OO
+    /// @param ancillaryData    - Ancillary data of the request
+    function priceDisputed(bytes32, uint256, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
+        // TODO
     }
 
     /*///////////////////////////////////////////////////////////////////

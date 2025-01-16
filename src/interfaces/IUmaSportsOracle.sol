@@ -32,6 +32,8 @@ interface IUmaSportsOracleEE {
 
     error InvalidRequestState();
 
+    error NotOptimisticOracle();
+
     /// @notice Emitted when a Game is created
     event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
 

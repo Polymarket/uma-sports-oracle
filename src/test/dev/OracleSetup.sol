@@ -13,7 +13,6 @@ import {IUmaSportsOracleEE} from "src/interfaces/IUmaSportsOracle.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 
 import {USDC} from "../mocks/USDC.sol";
-import {Finder} from "../mocks/Finder.sol";
 import {AddressWhitelist} from "../mocks/AddressWhitelist.sol";
 import {OptimisticOracleV2} from "../mocks/OptimisticOracleV2.sol";
 
@@ -24,7 +23,6 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
     UmaSportsOracle public oracle;
     address public usdc;
     address public ctf;
-    address public finder;
     address public whitelist;
     address public optimisticOracle;
 
@@ -40,10 +38,9 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
 
         whitelist = address(new AddressWhitelist());
         optimisticOracle = address(new OptimisticOracleV2());
-        finder = address(new Finder(optimisticOracle, whitelist));
 
         vm.startPrank(admin);
-        oracle = new UmaSportsOracle(ctf, finder);
+        oracle = new UmaSportsOracle(ctf, optimisticOracle, whitelist);
         IERC20(usdc).approve(address(oracle), type(uint256).max);
         vm.stopPrank();
     }
