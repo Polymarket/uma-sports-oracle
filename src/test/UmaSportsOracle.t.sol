@@ -805,9 +805,9 @@ contract UmaSportsOracleTest is OracleSetup {
         // Settle the Game, updating the scores
         vm.expectEmit();
         emit GameSettled(gameId, home, away);
-        
+
         settle(gameData.timestamp, gameData.ancillaryData);
-        
+
         gameData = oracle.getGame(gameId);
 
         assertEq(uint8(GameState.Settled), uint8(gameData.state));
@@ -841,9 +841,9 @@ contract UmaSportsOracleTest is OracleSetup {
         // Settle the Game, since the data is the ignore data, should reset the game
         vm.expectEmit();
         emit GameReset(gameId);
-        
+
         settle(gameData.timestamp, gameData.ancillaryData);
-        
+
         gameData = oracle.getGame(gameId);
         assertEq(uint8(GameState.Created), uint8(gameData.state));
     }
@@ -874,9 +874,9 @@ contract UmaSportsOracleTest is OracleSetup {
         // Settle the Game, since the data is the canceled data, should set the Game to canceled
         vm.expectEmit();
         emit GameCanceled(gameId);
-        
+
         settle(gameData.timestamp, gameData.ancillaryData);
-        
+
         gameData = oracle.getGame(gameId);
         assertEq(uint8(GameState.Canceled), uint8(gameData.state));
     }
