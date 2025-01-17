@@ -123,7 +123,7 @@ contract PayoutLibTest is TestHelper {
         vm.assume(_line > 0 && _line < 500);
 
         // Scale the line and add 0.5, 4 -> 4_500_000;
-        uint256 line = _line * (10 ** 6) + (5 * (10 ** 5));
+        uint256 line = convertLine(_line);
 
         uint256[] memory payouts = PayoutLib._constructSpreadsPayouts(home, away, line, underdog);
 
@@ -168,7 +168,7 @@ contract PayoutLibTest is TestHelper {
         vm.assume(_line > 0 && _line < 500);
 
         // Scale the line and add 0.5, 4 -> 4_500_000;
-        uint256 line = _line * (10 ** 6) + (5 * (10 ** 5));
+        uint256 line = convertLine(_line);
 
         uint256 total = uint256(home) + uint256(away);
         uint256[] memory payouts = PayoutLib._constructTotalsPayouts(home, away, line);

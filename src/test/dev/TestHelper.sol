@@ -34,4 +34,8 @@ abstract contract TestHelper is Test {
         }
         return int256(uint256(0)) << 224 | int256(uint256(away)) << 192 | int256(uint256(home)) << 160;
     }
+
+    function convertLine(uint256 line) internal pure returns (uint256) {
+        return (line * (10 ** 6)) + (5 * (10 ** 5));
+    }
 }

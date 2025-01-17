@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import {Auth} from "./modules/Auth.sol";
 
+import {LineLib} from "./libraries/LineLib.sol";
 import {PayoutLib} from "./libraries/PayoutLib.sol";
 import {ScoreDecoderLib} from "./libraries/ScoreDecoderLib.sol";
 import {AncillaryDataLib} from "./libraries/AncillaryDataLib.sol";
@@ -116,10 +117,11 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param gameId   - The unique Id of a Game to be linked to the Market
     /// @param underdog - The Underdog of the Market
     /// @param line     - The line of the Market.
-    /// @dev Must be a half spread, e.g 1.5, 2.5
-    /// @dev The line is always scaled by 10 ^ 6
+    /// @dev Must be a half point spread scaled by 10 ^ 6, e.g 1.5, 2.5
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
+        // Validate that the spread line is a half point spread
+        if (!LineLib._isValidSpreadLine(line)) revert InvalidLine();
         return _createMarket(gameId, MarketType.Spreads, underdog, line);
     }
 
@@ -343,14 +345,17 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
 
-        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        uint256 timestamp = gameData.timestamp;
+        bytes memory ancillaryData = gameData.ancillaryData;
+
+        State state = _getOORequestState(timestamp, ancillaryData);
         if (state != State.Requested) revert InvalidRequestState();
 
         // Update the bond amount in storage
         gameData.bond = bond;
 
         // Update the bond in the OO
-        optimisticOracle.setBond(IDENTIFIER, gameData.timestamp, gameData.ancillaryData, bond);
+        optimisticOracle.setBond(IDENTIFIER, timestamp, ancillaryData, bond);
         emit BondUpdated(gameId, bond);
     }
 
@@ -364,14 +369,17 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // no-op if the liveness did not change
         if (liveness == gameData.liveness) return;
 
-        State state = _getOORequestState(gameData.timestamp, gameData.ancillaryData);
+        uint256 timestamp = gameData.timestamp;
+        bytes memory ancillaryData = gameData.ancillaryData;
+
+        State state = _getOORequestState(timestamp, ancillaryData);
         if (state != State.Requested) revert InvalidRequestState();
 
         // Update the liveness amount in storage
         gameData.liveness = liveness;
 
         // Update liveness in the OO
-        optimisticOracle.setCustomLiveness(IDENTIFIER, gameData.timestamp, gameData.ancillaryData, liveness);
+        optimisticOracle.setCustomLiveness(IDENTIFIER, timestamp, ancillaryData, liveness);
 
         emit LivenessUpdated(gameId, liveness);
     }
@@ -534,9 +542,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         // Validate that we can create a Market from the Game
         if (gameData.state != GameState.Created) revert InvalidGame();
-
-        // Validate the marketType and line
-        if (line == 0 && (marketType == MarketType.Spreads)) revert InvalidLine();
 
         marketId = keccak256(abi.encode(gameId, marketType, uint8(underdog), line, msg.sender));
 

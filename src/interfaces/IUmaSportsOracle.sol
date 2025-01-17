@@ -13,15 +13,9 @@ interface IUmaSportsOracleEE {
     error MarketDoesNotExist();
     error InvalidGame();
     error InvalidLine();
-    error InvalidBond();
-
-    error GameCannotBeSettled();
-    error DataDoesNotExist();
 
     error GameNotResolvable();
 
-    error Settled();
-    error Paused();
     error GameCannotBePaused();
     error GameCannotBeUnpaused();
     error GameCannotBeEmergencySettled();

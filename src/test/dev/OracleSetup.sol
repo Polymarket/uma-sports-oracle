@@ -106,10 +106,6 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         return keccak256(abi.encodePacked(_oracle, _questionId, _outcomeSlotCount));
     }
 
-    function convertLine(uint256 line) internal pure returns (uint256) {
-        return (line * (10 ** 6)) + (5 * (10 ** 5));
-    }
-
     function propose(int256 price, uint256 timestamp, bytes memory data) internal {
         fastForward(10);
         vm.prank(proposer);

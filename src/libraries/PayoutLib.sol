@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+import {LineLib} from "./LineLib.sol";
 import {Ordering, MarketData, MarketType, GameState, GameData, Underdog} from "./Structs.sol";
 
 library PayoutLib {
-    uint256 internal constant ONE = 10 ** 6;
-
     /// @notice Generate a payout array for the Market, given its state, market type, ordering and line
     /// @param state        - The state of the Game
     /// @param marketType   - The market type
@@ -97,7 +96,7 @@ library PayoutLib {
         returns (uint256[] memory)
     {
         uint256[] memory payouts = new uint256[](2);
-        uint256 _line = _getLineLowerBound(line);
+        uint256 _line = LineLib._getLineLowerBound(line);
 
         if (underdog == Underdog.Home) {
             // Underdog is Home
@@ -135,7 +134,7 @@ library PayoutLib {
     function _constructTotalsPayouts(uint32 home, uint32 away, uint256 line) internal pure returns (uint256[] memory) {
         uint256[] memory payouts = new uint256[](2);
         uint256 total = uint256(home) + uint256(away);
-        uint256 _line = _getLineLowerBound(line);
+        uint256 _line = LineLib._getLineLowerBound(line);
         if (total <= _line) {
             // Under wins, [0,1]
             payouts[0] = 0;
@@ -146,10 +145,5 @@ library PayoutLib {
             payouts[1] = 0;
         }
         return payouts;
-    }
-
-    /// @notice Gets the lower bound of a line
-    function _getLineLowerBound(uint256 line) internal pure returns (uint256) {
-        return line / ONE;
     }
 }
