@@ -65,8 +65,7 @@ library PayoutLib {
                 // Home Win, [1, 0]
                 payouts[0] = 1;
                 payouts[1] = 0;
-            }
-            if (away > home) {
+            } else {
                 // Away Win, [0, 1]
                 payouts[0] = 0;
                 payouts[1] = 1;
@@ -77,8 +76,7 @@ library PayoutLib {
                 // Home Win, [0, 1]
                 payouts[0] = 0;
                 payouts[1] = 1;
-            }
-            if (away > home) {
+            } else {
                 // Away Win, [1, 0]
                 payouts[0] = 1;
                 payouts[1] = 0;
