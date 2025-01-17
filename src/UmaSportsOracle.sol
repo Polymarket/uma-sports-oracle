@@ -143,7 +143,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         GameData storage gameData = games[marketData.gameId];
         GameState state = gameData.state;
 
-        // Valid Game states for market resolution: Settled, Canceled and EmergencySettled
+        // Valid Game states for market resolution: Settled, Canceled or EmergencySettled
         if (!(state == GameState.Settled || state == GameState.Canceled || state == GameState.EmergencySettled)) {
             revert GameNotResolvable();
         }
