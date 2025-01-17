@@ -35,9 +35,9 @@ contract IntegrationTest is OracleSetup {
         bytes32 spreads_30 = oracle.createSpreadsMarket(gameId, Underdog.Home, convertLine(30));
 
         // create totals markets with line 150, 200 and 250
-        bytes32 totals_150 = oracle.createTotalsMarket(gameId, Underdog.Home, convertLine(150));
-        bytes32 totals_200 = oracle.createTotalsMarket(gameId, Underdog.Home, convertLine(200));
-        bytes32 totals_250 = oracle.createTotalsMarket(gameId, Underdog.Home, convertLine(250));
+        bytes32 totals_150 = oracle.createTotalsMarket(gameId, convertLine(150));
+        bytes32 totals_200 = oracle.createTotalsMarket(gameId, convertLine(200));
+        bytes32 totals_250 = oracle.createTotalsMarket(gameId, convertLine(250));
 
         // Push prices to the OO and settle the Game
         int256 price = encodeScores(101, 130, Ordering.HomeVsAway);
