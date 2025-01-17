@@ -772,6 +772,30 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resetGame(gameId);
     }
 
+    function test_admin_resetGame_refundAvailable() public {
+        test_createGame();
+
+        fastForward(10);
+
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        // Propose and dispute the game 2x, refunding the reward to the Oracle
+        int256 data = encodeScores(uint32(101), uint32(133), Ordering.HomeVsAway);
+        proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
+
+        fastForward(10);
+
+        gameData = oracle.getGame(gameId);
+        proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
+
+        vm.expectEmit();
+        emit Transfer(address(oracle), admin, gameData.reward);
+
+        vm.prank(admin);
+        oracle.resetGame(gameId);
+    }
+
     function test_admin_resetGame_GameDoesNotExist() public {
         vm.expectRevert(GameDoesNotExist.selector);
         vm.prank(admin);
@@ -802,6 +826,54 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(GameState.Settled), uint8(gameData.state));
         assertEq(home, gameData.homeScore);
         assertEq(away, gameData.awayScore);
+    }
+
+    function test_priceSettled_alreadySettled(uint32 home, uint32 away) public {
+        test_createGame();
+
+        // Emergency settle the game
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, home, away);
+
+        // Propose a price and settle it on the OO, but the Game is already settled. Should no-op
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 timestamp = gameData.timestamp;
+
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
+
+        gameData = oracle.getGame(gameId);
+        // No change in timestamp
+        assertEq(timestamp, gameData.timestamp);
+    }
+
+    function test_priceSettled_oldRequestSettle(uint32 home, uint32 away) public {
+        test_createGame();
+
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 timestamp = gameData.timestamp;
+
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+        // Propose + dispute
+        proposeAndDispute(data, timestamp, gameData.ancillaryData);
+        gameData = oracle.getGame(gameId);
+        // Propose + dispute again
+        proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
+
+        // The first request was processed by the DVM first
+        // Settle the first request, this should no-op since we ignore the older request
+        voting.setPriceExists(true);
+        voting.setPrice(data);
+        settle(timestamp, gameData.ancillaryData);
+
+        gameData = oracle.getGame(gameId);
+        assertTrue(gameData.timestamp > timestamp);
     }
 
     function test_priceDisputed_singleDispute(uint32 home, uint32 away) public {
@@ -935,5 +1007,32 @@ contract UmaSportsOracleTest is OracleSetup {
 
         gameData = oracle.getGame(gameId);
         assertEq(uint8(GameState.Canceled), uint8(gameData.state));
+    }
+
+    function test_priceDisputed_AlreadySettled(uint32 home, uint32 away) public {
+        test_createGame();
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 initialTimestamp = gameData.timestamp;
+        bytes memory ancData = gameData.ancillaryData;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+
+        // Emergency settle the game
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, home, away);
+
+        // propose and dispute it
+        // Since the Game is already settled, the callback will refund the creator
+        propose(data, initialTimestamp, ancData);
+        vm.expectEmit();
+        emit Transfer(address(oracle), admin, gameData.reward);
+
+        dispute(initialTimestamp, ancData);
+
+        gameData = oracle.getGame(gameId);
+        assertEq(initialTimestamp, gameData.timestamp);
     }
 }
