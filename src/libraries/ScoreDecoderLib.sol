@@ -4,10 +4,9 @@ pragma solidity 0.8.27;
 import {Ordering} from "./Structs.sol";
 
 library ScoreDecoderLib {
-    uint256 internal constant SCORE_A_IDX = 192;
-    uint256 internal constant SCORE_B_IDX = 160;
+    uint256 internal constant SCORE_A_IDX = 32;
+    uint256 internal constant SCORE_B_IDX = 64;
 
-    // TODO: umip 183 encoding is changing. Update when ready
     function decodeScores(Ordering ordering, int256 data) internal pure returns (uint32 home, uint32 away) {
         if (ordering == Ordering.HomeVsAway) {
             home = _getScore(data, SCORE_A_IDX);
