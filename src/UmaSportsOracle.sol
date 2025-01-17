@@ -115,7 +115,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @notice Creates a Spreads Market based on an underlying Game
     /// @param gameId   - The unique Id of a Game to be linked to the Market
     /// @param underdog - The Underdog of the Market
-    /// @param line     - The line of the Market
+    /// @param line     - The line of the Market.
+    /// @dev Must be a half spread, e.g 1.5, 2.5
     /// @dev The line is always scaled by 10 ^ 6
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
