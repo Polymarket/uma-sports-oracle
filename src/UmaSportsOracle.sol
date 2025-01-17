@@ -91,7 +91,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         gameId = keccak256(data);
 
         // Verify that the game is unique
-        if (isGameCreated(gameId)) revert GameAlreadyCreated();
+        GameData storage gameData = games[gameId];
+        if (_isGameCreated(gameData)) revert GameAlreadyCreated();
 
         uint256 timestamp = block.timestamp;
 
@@ -123,11 +124,10 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     /// @notice Creates a Totals Market based on an underlying Game
     /// @param gameId   - The unique Id of a Game to be linked to the Market
-    /// @param underdog - The Underdog of the Market
     /// @param line     - The line of the Market
     /// @dev For a Totals line of 218.5, line = 218_500_000
-    function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
-        return createMarket(gameId, MarketType.Totals, underdog, line);
+    function createTotalsMarket(bytes32 gameId, uint256 line) external returns (bytes32) {
+        return createMarket(gameId, MarketType.Totals, Underdog.Home, line);
     }
 
     /// @notice Creates a Market based on an underlying Game
@@ -154,7 +154,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         marketId = keccak256(abi.encode(gameId, marketType, line, msg.sender));
 
         // Validate that the market is unique
-        if (isMarketCreated(marketId)) revert MarketAlreadyCreated();
+        MarketData storage marketData = markets[marketId];
+        if (_isMarketCreated(marketData)) revert MarketAlreadyCreated();
 
         // Store the Market
         _saveMarket(marketId, gameId, line, underdog, marketType);
@@ -268,14 +269,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         return markets[marketId];
     }
 
-    function isGameCreated(bytes32 gameId) public view returns (bool) {
-        return _isGameCreated(games[gameId]);
-    }
-
-    function isMarketCreated(bytes32 marketId) public view returns (bool) {
-        return _isMarketCreated(markets[marketId]);
-    }
-
     /*///////////////////////////////////////////////////////////////////
                             ADMIN 
     //////////////////////////////////////////////////////////////////*/
@@ -377,7 +370,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         emit MarketEmergencyResolved(marketId, payouts);
     }
 
-    /// @notice Admin gated function ton update the UMA bond for a Game
+    /// @notice Updates the UMA bond for a Game
     /// @param gameId   - The unique game Id
     /// @param bond     - The updated bond
     function setBond(bytes32 gameId, uint256 bond) external onlyAdmin {

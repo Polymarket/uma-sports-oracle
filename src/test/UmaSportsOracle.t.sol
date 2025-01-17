@@ -154,7 +154,7 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
 
         vm.prank(admin);
-        oracle.createTotalsMarket(gameId, Underdog.Home, line);
+        oracle.createTotalsMarket(gameId, line);
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -341,7 +341,7 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 line = 300_500_000;
 
         // Create a Totals market on the Game
-        bytes32 marketId = oracle.createTotalsMarket(gameId, Underdog.Home, line);
+        bytes32 marketId = oracle.createTotalsMarket(gameId, line);
 
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 

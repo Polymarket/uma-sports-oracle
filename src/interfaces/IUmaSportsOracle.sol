@@ -95,7 +95,7 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
 
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32);
 
-    function createTotalsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32);
+    function createTotalsMarket(bytes32 gameId, uint256 line) external returns (bytes32);
 
     function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         external
@@ -122,6 +122,4 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
     function getMarket(bytes32 marketId) external view returns (MarketData memory);
 
     function ready(bytes32 gameId) external view returns (bool);
-
-    function isGameCreated(bytes32 gameId) external view returns (bool);
 }
