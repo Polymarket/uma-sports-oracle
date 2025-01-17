@@ -29,9 +29,9 @@ abstract contract TestHelper is Test {
 
     function encodeScores(uint32 home, uint32 away, Ordering ordering) internal pure returns (int256) {
         if (ordering == Ordering.HomeVsAway) {
-            return int256(uint256(home)) << 32 | int256(uint256(away)) << 64;
+            return int256(uint256(home)) << 0 | int256(uint256(away)) << 32;
         }
-        return int256(uint256(away)) << 32 | int256(uint256(home)) << 64;
+        return int256(uint256(away)) << 0 | int256(uint256(home)) << 32;
     }
 
     function convertLine(uint256 line) internal pure returns (uint256) {
