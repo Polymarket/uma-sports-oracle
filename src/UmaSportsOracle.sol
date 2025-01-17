@@ -196,8 +196,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         GameState state = gameData.state;
 
-        // If the Game is already settled, refund the reward to the creator and no-op
-        if (state == GameState.Settled || state == GameState.EmergencySettled) {
+        // If the Game is settled, refund the reward to the creator and no-op
+        if (state == GameState.EmergencySettled) {
             _refund(gameData.token, gameData.creator, gameData.reward);
             return;
         }
