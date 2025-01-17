@@ -94,7 +94,11 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         return keccak256(abi.encode(_gameId, marketType, uint8(underdog), line, creator));
     }
 
-    function getConditionId(address _oracle, bytes32 _questionId, uint256 _outcomeSlotCount) internal pure returns (bytes32) {
+    function getConditionId(address _oracle, bytes32 _questionId, uint256 _outcomeSlotCount)
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encodePacked(_oracle, _questionId, _outcomeSlotCount));
     }
 

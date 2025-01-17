@@ -436,14 +436,14 @@ contract UmaSportsOracleTest is OracleSetup {
         uint32 away = 133;
         vm.prank(admin);
         oracle.pauseGame(gameId);
-        
+
         vm.prank(admin);
         oracle.emergencySettleGame(gameId, home, away);
 
         uint256[] memory payouts = new uint256[](2);
         payouts[0] = 0;
-        payouts[1] = 1;        
-        
+        payouts[1] = 1;
+
         vm.expectEmit();
         emit MarketResolved(marketId, payouts);
 
@@ -459,7 +459,6 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
-
     }
 
     function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 _line, uint8 _marketType, uint8 _underdog)
