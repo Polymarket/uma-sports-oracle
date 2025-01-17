@@ -45,6 +45,8 @@ struct GameData {
     bytes ancillaryData;
     // Flag indicating that the Game has been reset
     bool reset;
+    // Flag indicating that the Game should refund the creator
+    bool refund;
 }
 
 enum MarketType {

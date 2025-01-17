@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {IERC20} from "./interfaces/IERC20.sol";
+import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
+
 import {OracleSetup} from "./dev/OracleSetup.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
-
-import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {Ordering, GameData, GameState, MarketState, MarketType, MarketData, Underdog} from "src/libraries/Structs.sol";
@@ -202,7 +203,13 @@ contract UmaSportsOracleTest is OracleSetup {
         emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, Underdog.Home, _line);
+        if (marketType == MarketType.Winner) {
+            oracle.createWinnerMarket(gameId);
+        } else if (marketType == MarketType.Spreads) {
+            oracle.createSpreadsMarket(gameId, Underdog.Home, _line);
+        } else {
+            oracle.createTotalsMarket(gameId, _line);
+        }
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -223,7 +230,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidLine.selector);
         vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 100);
+        oracle.createSpreadsMarket(gameId, Underdog.Home, 0);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
@@ -482,7 +489,14 @@ contract UmaSportsOracleTest is OracleSetup {
         }
 
         // Create a market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, marketType, underdog, line);
+        bytes32 marketId;
+        if (marketType == MarketType.Winner) {
+            marketId = oracle.createWinnerMarket(gameId);
+        } else if (marketType == MarketType.Spreads) {
+            marketId = oracle.createSpreadsMarket(gameId, underdog, line);
+        } else {
+            marketId = oracle.createTotalsMarket(gameId, line);
+        }
 
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
@@ -829,12 +843,21 @@ contract UmaSportsOracleTest is OracleSetup {
         dispute(gameData.timestamp, gameData.ancillaryData);
         gameData = oracle.getGame(gameId);
 
+        // Validate that the oracle now holds the reward
+        assertEq(gameData.reward, IERC20(usdc).balanceOf(address(oracle)));
+        // Validate that the refund flag is set
+        assertTrue(gameData.refund);
+
         // Push the score to the DVM
         voting.setPriceExists(true);
         voting.setPrice(data);
 
         // Settle the Game, updating the scores
         vm.expectEmit();
+
+        // Validate the reward refund to the creator
+        emit Transfer(address(oracle), gameData.creator, gameData.reward);
+
         emit GameSettled(gameId, home, away);
 
         settle(gameData.timestamp, gameData.ancillaryData);

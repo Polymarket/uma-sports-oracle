@@ -109,7 +109,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @notice Creates a Winner(Team A vs Team B) Market based on an underlying Game
     /// @param gameId   - The unique Id of a Game to be linked to the Market
     function createWinnerMarket(bytes32 gameId) external returns (bytes32) {
-        return createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
+        return _createMarket(gameId, MarketType.Winner, Underdog.Home, 0);
     }
 
     /// @notice Creates a Spreads Market based on an underlying Game
@@ -119,7 +119,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @dev The line is always scaled by 10 ^ 6
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
-        return createMarket(gameId, MarketType.Spreads, underdog, line);
+        return _createMarket(gameId, MarketType.Spreads, underdog, line);
     }
 
     /// @notice Creates a Totals Market based on an underlying Game
@@ -127,44 +127,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param line     - The line of the Market
     /// @dev For a Totals line of 218.5, line = 218_500_000
     function createTotalsMarket(bytes32 gameId, uint256 line) external returns (bytes32) {
-        return createMarket(gameId, MarketType.Totals, Underdog.Home, line);
-    }
-
-    /// @notice Creates a Market based on an underlying Game
-    /// @dev Creates the underlying CTF market based on the marketId
-    /// @param gameId       - The unique Id of a Game to be linked to the Market
-    /// @param marketType   - The marketType of the Market
-    /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
-    /// @param line         - The line of the Market. Unused for Winner markets
-    function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
-        public
-        returns (bytes32 marketId)
-    {
-        GameData storage gameData = games[gameId];
-
-        // Validate that the Game exists
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
-
-        // Validate that we can create a Market from the Game
-        if (gameData.state != GameState.Created) revert InvalidGame();
-
-        // Validate the marketType and line
-        if (line > 0 && (marketType == MarketType.Winner)) revert InvalidLine();
-
-        marketId = keccak256(abi.encode(gameId, marketType, uint8(underdog), line, msg.sender));
-
-        // Validate that the market is unique
-        MarketData storage marketData = markets[marketId];
-        if (_isMarketCreated(marketData)) revert MarketAlreadyCreated();
-
-        // Store the Market
-        _saveMarket(marketId, gameId, line, underdog, marketType);
-
-        // Create the underlying CTF market
-        bytes32 conditionId = _prepareMarket(marketId);
-
-        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
-        return marketId;
+        return _createMarket(gameId, MarketType.Totals, Underdog.Home, line);
     }
 
     /// @notice Resolves a Market using the scores of a Settled Game
@@ -219,28 +182,23 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     /// @notice Callback to be executed by the OO dispute.
     /// Resets the Game by sending out a new price Request to the OO
-    /// @param timestamp        - Timestamp of the Request
     /// @param ancillaryData    - Ancillary data of the request
-    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256)
-        external
-        onlyOptimisticOracle
-    {
+    function priceDisputed(bytes32, uint256, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
         bytes32 gameId = keccak256(ancillaryData);
         GameData storage gameData = games[gameId];
 
-        // Ensure the request timestamp matches Game timestamp.
-        // This ensures that only the Live OO Request is relevant to the Oracle
-        if (gameData.timestamp != timestamp) {
+        GameState state = gameData.state;
+
+        // If the Game is already settled, refund the reward to the creator and no-op
+        if (state == GameState.Settled || state == GameState.EmergencySettled) {
+            _refund(gameData.token, gameData.creator, gameData.reward);
             return;
         }
 
-        // No-op if the game is in any state other than Created, i.e EmergencySettled or Paused
-        if (gameData.state != GameState.Created) {
-            return;
-        }
-
-        // No-op if the Game has been reset before
+        // If the Game has the reset flag set, this indicates that the OO Request was pushed to the DVM
+        // Set the refund flag on the Game to refund the creator on resolution
         if (gameData.reset) {
+            gameData.refund = true;
             return;
         }
 
@@ -309,7 +267,10 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         if (!_isGameCreated(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Created) revert GameCannotBeReset();
 
-        _resetGame(msg.sender, gameId, gameData);
+        // Refund the reward to the Game's creator if necessary
+        if (gameData.refund) _refund(gameData.token, gameData.creator, gameData.reward);
+
+        _resetGameAndRefund(msg.sender, gameId, gameData);
     }
 
     /// @notice Emergency settles a Game
@@ -418,24 +379,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
                             INTERNAL 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Prepare a new Condition on the CTF
-    /// @dev The marketId will be used as the questionID
-    /// @param marketId - The unique MarketId
-    function _prepareMarket(bytes32 marketId) internal returns (bytes32 conditionId) {
-        conditionId = keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
-        if (ctf.getOutcomeSlotCount(conditionId) == 0) {
-            ctf.prepareCondition(address(this), marketId, 2);
-        }
-        return conditionId;
-    }
-
-    /// @notice Report payouts on the CTF
-    /// @param marketId - The unique MarketId
-    /// @param payouts  - The payouts used to resolve the Condition
-    function _reportPayouts(bytes32 marketId, uint256[] memory payouts) internal {
-        ctf.reportPayouts(marketId, payouts);
-    }
-
     /// @notice Saves Game Data
     /// @param creator      - Address of the creator
     /// @param timestamp    - Timestamp used in the OO request
@@ -467,7 +410,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
             ancillaryData: data,
             homeScore: 0,
             awayScore: 0,
-            reset: false
+            reset: false,
+            refund: false
         });
     }
 
@@ -542,7 +486,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // Meaning, the only way to get the ignore price value is through the DVM i.e through a dispute
         optimisticOracle.setEventBased(IDENTIFIER, timestamp, data);
 
-        // Update the bond on the OO
+        // Update the bond and liveness on the OO if necessary
         if (bond > 0) optimisticOracle.setBond(IDENTIFIER, timestamp, data, bond);
         if (liveness > 0) optimisticOracle.setCustomLiveness(IDENTIFIER, timestamp, data, liveness);
     }
@@ -556,7 +500,10 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // If canceled, cancel the game
         if (_isCanceled(data)) return _cancelGame(gameId, gameData);
         // If ignore, reset the game
-        if (_isIgnore(data)) return _resetGame(address(this), gameId, gameData);
+        if (_isIgnore(data)) return _resetGameAndRefund(address(this), gameId, gameData);
+
+        // Refund the reward to the Game's creator on resolution if necessary
+        if (gameData.refund) _refund(gameData.token, gameData.creator, gameData.reward);
 
         // Decode the scores from the OO data
         (uint32 home, uint32 away) = ScoreDecoderLib.decodeScores(gameData.ordering, data);
@@ -569,11 +516,74 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         emit GameSettled(gameId, home, away);
     }
 
+    /// @notice Creates a Market based on an underlying Game
+    /// @dev Creates the underlying CTF market based on the marketId
+    /// @param gameId       - The unique Id of a Game to be linked to the Market
+    /// @param marketType   - The marketType of the Market
+    /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
+    /// @param line         - The line of the Market. Unused for Winner markets
+    function _createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
+        internal
+        returns (bytes32 marketId)
+    {
+        GameData storage gameData = games[gameId];
+
+        // Validate that the Game exists
+        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+
+        // Validate that we can create a Market from the Game
+        if (gameData.state != GameState.Created) revert InvalidGame();
+
+        // Validate the marketType and line
+        if (line == 0 && (marketType == MarketType.Spreads)) revert InvalidLine();
+
+        marketId = keccak256(abi.encode(gameId, marketType, uint8(underdog), line, msg.sender));
+
+        // Validate that the market is unique
+        MarketData storage marketData = markets[marketId];
+        if (_isMarketCreated(marketData)) revert MarketAlreadyCreated();
+
+        // Store the Market
+        _saveMarket(marketId, gameId, line, underdog, marketType);
+
+        // Create the underlying CTF market
+        bytes32 conditionId = _prepareMarket(marketId);
+
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+        return marketId;
+    }
+
+    /// @notice Prepare a new Condition on the CTF
+    /// @dev The marketId will be used as the questionID
+    /// @param marketId - The unique MarketId
+    function _prepareMarket(bytes32 marketId) internal returns (bytes32 conditionId) {
+        conditionId = keccak256(abi.encodePacked(address(this), marketId, uint256(2)));
+        if (ctf.getOutcomeSlotCount(conditionId) == 0) {
+            ctf.prepareCondition(address(this), marketId, 2);
+        }
+        return conditionId;
+    }
+
+    /// @notice Report payouts on the CTF
+    /// @param marketId - The unique MarketId
+    /// @param payouts  - The payouts used to resolve the Condition
+    function _reportPayouts(bytes32 marketId, uint256[] memory payouts) internal {
+        ctf.reportPayouts(marketId, payouts);
+    }
+
     /// @notice Cancels a game, setting the state to Canceled
     /// @dev GameState transition: Created -> Canceled
     function _cancelGame(bytes32 gameId, GameData storage gameData) internal {
         gameData.state = GameState.Canceled;
         emit GameCanceled(gameId);
+    }
+
+    /// @notice Resets the game data refund flag and resets a Game
+    /// To be used as part of settle and resetGame flows
+    function _resetGameAndRefund(address requestor, bytes32 gameId, GameData storage gameData) internal {
+        // Reset the refund flag
+        gameData.refund = false;
+        _resetGame(requestor, gameId, gameData);
     }
 
     /// @notice Resets a Game by sending a new request to the OO
@@ -631,6 +641,10 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     function _isMarketCreated(MarketData storage marketData) internal view returns (bool) {
         return marketData.gameId != bytes32(0);
+    }
+
+    function _refund(address token, address to, uint256 amount) internal {
+        SafeTransferLib.safeTransfer(ERC20(token), to, amount);
     }
 
     function _ready(GameData storage gameData) internal view returns (bool) {

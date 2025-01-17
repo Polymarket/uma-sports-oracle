@@ -43,6 +43,8 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
 
     bytes32 public identifier = "MULTIPLE_VALUES";
 
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
     function setUp() public {
         admin = alice;
         proposer = brian;
@@ -60,6 +62,7 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         whitelist = address(new AddressWhitelist());
         Finder finder = new Finder();
         optimisticOracle = DeployLib.deployOptimisticOracleV2(7200, address(finder));
+        vm.label(optimisticOracle, "OptimisticOracle");
 
         address store = address(new Store());
         address identifierWhitelist = address(new IdentifierWhitelist());
@@ -84,6 +87,7 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         oracle = new UmaSportsOracle(ctf, optimisticOracle, whitelist);
         IERC20(usdc).approve(address(oracle), type(uint256).max);
         vm.stopPrank();
+        vm.label(address(oracle), "UmaSportsOracle");
     }
 
     function getMarketId(bytes32 _gameId, MarketType marketType, Underdog underdog, uint256 line, address creator)
