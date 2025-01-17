@@ -131,4 +131,12 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
 
         settle(timestamp, data);
     }
+
+    function proposeAndDispute(int256 price, uint256 timestamp, bytes memory data) internal {
+        propose(price, timestamp, data);
+
+        fastForward(1);
+
+        dispute(timestamp, data);
+    }
 }
