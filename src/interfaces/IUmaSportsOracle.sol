@@ -20,6 +20,7 @@ interface IUmaSportsOracleEE {
     error GameCannotBeUnpaused();
     error GameCannotBeEmergencySettled();
 
+    error MarketCannotBeResolved();
     error MarketCannotBePaused();
     error MarketCannotBeUnpaused();
     error MarketCannotBeEmergencyResolved();
