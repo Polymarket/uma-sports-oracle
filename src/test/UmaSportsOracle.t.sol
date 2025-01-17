@@ -229,8 +229,10 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
 
         vm.expectRevert(InvalidLine.selector);
-        vm.prank(admin);
         oracle.createSpreadsMarket(gameId, Underdog.Home, 0);
+
+        vm.expectRevert(InvalidLine.selector);
+        oracle.createSpreadsMarket(gameId, Underdog.Home, 2_000_000);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
