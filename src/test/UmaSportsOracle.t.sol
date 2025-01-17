@@ -777,13 +777,13 @@ contract UmaSportsOracleTest is OracleSetup {
 
         fastForward(10);
 
-        GameData memory gameData; 
+        GameData memory gameData;
         gameData = oracle.getGame(gameId);
 
         // Propose and dispute the game 2x, refunding the reward to the Oracle
         int256 data = encodeScores(uint32(101), uint32(133), Ordering.HomeVsAway);
         proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
-        
+
         fastForward(10);
 
         gameData = oracle.getGame(gameId);
@@ -865,7 +865,7 @@ contract UmaSportsOracleTest is OracleSetup {
         gameData = oracle.getGame(gameId);
         // Propose + dispute again
         proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
-        
+
         // The first request was processed by the DVM first
         // Settle the first request, this should no-op since we ignore the older request
         voting.setPriceExists(true);
