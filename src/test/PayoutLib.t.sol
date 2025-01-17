@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {console2 as console} from "lib/forge-std/src/Test.sol";
-
 import {TestHelper} from "./dev/TestHelper.sol";
 import {Ordering, Underdog, MarketType} from "src/libraries/Structs.sol";
 import {PayoutLib} from "src/libraries/PayoutLib.sol";
@@ -122,7 +120,7 @@ contract PayoutLibTest is TestHelper {
         _underdog = uint8(bound(_underdog, 0, 1));
         Underdog underdog = Underdog(_underdog);
 
-        vm.assume(_line > 0 && _line < 100);
+        vm.assume(_line > 0 && _line < 500);
 
         // Scale the line and add 0.5, 4 -> 4_500_000;
         uint256 line = _line * (10 ** 6) + (5 * (10 ** 5));
@@ -139,7 +137,6 @@ contract PayoutLibTest is TestHelper {
         if (underdog == Underdog.Home && away > home && away - home <= _line) {
             assertEq(uint256(0), payouts[0]);
             assertEq(uint256(1), payouts[1]);
-            assertFalse(false);
         }
 
         // Home underdog, Home loses, spread > line, Favorite win: [1,0]

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {console2 as console} from "lib/forge-std/src/Test.sol";
-
 import {OracleSetup} from "./dev/OracleSetup.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
 
 import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
-import {IOptimisticOracleV2Mock, State} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {Ordering, GameData, GameState, MarketState, MarketType, MarketData, Underdog} from "src/libraries/Structs.sol";
@@ -99,7 +96,7 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketType marketType = MarketType.Winner;
         uint256 line = 0;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -124,7 +121,7 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 line = convertLine(_line);
         MarketType marketType = MarketType.Spreads;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -147,7 +144,7 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
         MarketType marketType = MarketType.Totals;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
 
         vm.expectEmit();
@@ -169,7 +166,7 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
 
         // "Frontrun" the createWinnerMarket call by preparing the expected marketId on the CTF
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, admin);
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, admin);
         IConditionalTokens(ctf).prepareCondition(address(oracle), marketId, 2);
 
         // The "frontrunning" should have no impact on creating the market
@@ -198,7 +195,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         uint256 outcomeCount = 2;
 
-        bytes32 marketId = getMarketId(gameId, marketType, _line, admin);
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, _line, admin);
         bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
 
         vm.expectEmit();
@@ -422,11 +419,11 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(bytes32(0));
     }
 
-    function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
+    function test_resolveMarket_revert_GameNotResolvable() public {
         test_createGame();
         bytes32 marketId = oracle.createWinnerMarket(gameId);
 
-        vm.expectRevert(GameNotSettledOrCanceled.selector);
+        vm.expectRevert(GameNotResolvable.selector);
         oracle.resolveMarket(marketId);
     }
 
@@ -601,7 +598,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_pauseMarket_revert_MarketCannotBePaused() public {
         test_resolveMarket_Winner();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         vm.expectRevert(MarketCannotBePaused.selector);
         vm.prank(admin);
@@ -610,7 +607,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_unpauseMarket() public {
         test_admin_pauseMarket();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, admin);
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, admin);
 
         vm.expectEmit();
         emit MarketUnpaused(marketId);
@@ -630,7 +627,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_unpauseMarket_revert_MarketCannotBeUnpaused() public {
         test_resolveMarket_Winner();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         vm.expectRevert(MarketCannotBeUnpaused.selector);
         vm.prank(admin);
@@ -672,7 +669,7 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_admin_emergencyResolveMarket_revert_MarketCannotBeEmergencyResolved() public {
         test_resolveMarket_Winner();
 
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         uint256[] memory payouts = new uint256[](2);
         payouts[0] = 0;

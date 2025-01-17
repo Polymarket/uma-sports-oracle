@@ -27,7 +27,7 @@ struct GameData {
     GameState state;
     // The Ordering of the game
     Ordering ordering;
-    // The score of the home teams
+    // The score of the home team
     uint32 homeScore;
     // The score of the away team
     uint32 awayScore;

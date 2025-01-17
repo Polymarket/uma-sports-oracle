@@ -151,7 +151,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // Validate the marketType and line
         if (line > 0 && (marketType == MarketType.Winner)) revert InvalidLine();
 
-        marketId = keccak256(abi.encode(gameId, marketType, line, msg.sender));
+        marketId = keccak256(abi.encode(gameId, marketType, uint8(underdog), line, msg.sender));
 
         // Validate that the market is unique
         MarketData storage marketData = markets[marketId];
@@ -178,7 +178,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         // Ensure the Game is settled or canceled
         if (gameData.state != GameState.Settled && gameData.state != GameState.Canceled) {
-            revert GameNotSettledOrCanceled();
+            revert GameNotResolvable();
         }
 
         // Resolve the Market

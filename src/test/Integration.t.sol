@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import {OracleSetup} from "./dev/OracleSetup.sol";
-import {IOptimisticOracleV2Mock} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {Ordering, GameData, Underdog} from "src/libraries/Structs.sol";
 

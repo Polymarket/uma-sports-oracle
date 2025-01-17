@@ -18,7 +18,7 @@ interface IUmaSportsOracleEE {
     error GameCannotBeSettled();
     error DataDoesNotExist();
 
-    error GameNotSettledOrCanceled();
+    error GameNotResolvable();
 
     error Settled();
     error Paused();

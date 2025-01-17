@@ -23,7 +23,7 @@ library DeployLib {
         return deployment;
     }
 
-    function OptimisticOracleV2(uint256 liveness, address finder) public returns (address) {
+    function deployOptimisticOracleV2(uint256 liveness, address finder) public returns (address) {
         bytes memory args = abi.encode(liveness, finder, address(0));
         address deployment = _deployCode("artifacts/OptimisticOracleV2.json", args);
         vm.label(deployment, "OptimisticOracleV2");
