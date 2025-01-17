@@ -134,11 +134,15 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     /// @notice Resolves a Market using the scores of a Settled Game
+    /// @dev MarketState transition: Created -> Resolved
     /// @param marketId - The unique marketId
     function resolveMarket(bytes32 marketId) external {
         MarketData storage marketData = markets[marketId];
         // Ensure the Market exists
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+
+        // Validate that the Market can be resolved
+        if (marketData.state != MarketState.Created) revert MarketCannotBeResolved();
 
         GameData storage gameData = games[marketData.gameId];
         GameState state = gameData.state;
@@ -619,7 +623,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     /// @notice Resolves a market
-    /// @dev MarketState transition: Created -> Resolved
     /// @param marketId - The unique Market Id
     /// @param gameData - The game data
     /// @param marketData - The market data

@@ -436,6 +436,18 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(marketId);
     }
 
+    function test_resolveMarket_revert_MarketCannotBeResolved() public {
+        test_createGame();
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        // Pause the market
+        vm.prank(admin);
+        oracle.pauseMarket(marketId);
+
+        vm.expectRevert(MarketCannotBeResolved.selector);
+        oracle.resolveMarket(marketId);
+    }
+
     function test_resolveMarket_emergencySettleGame() public {
         test_createGame();
 
