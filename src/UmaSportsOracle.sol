@@ -192,7 +192,10 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @notice Callback to be executed by the OO dispute.
     /// Resets the Game by sending out a new price Request to the OO
     /// @param ancillaryData    - Ancillary data of the request
-    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
+    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256)
+        external
+        onlyOptimisticOracle
+    {
         bytes32 gameId = keccak256(ancillaryData);
         GameData storage gameData = games[gameId];
 

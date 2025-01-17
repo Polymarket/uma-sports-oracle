@@ -1061,7 +1061,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         uint256 timestamp = gameData.timestamp;
         int256 data = encodeScores(home, away, Ordering.HomeVsAway);
-        
+
         // Admin resets game, creating OO req2
         vm.prank(admin);
         oracle.resetGame(gameId);
