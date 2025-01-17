@@ -66,19 +66,6 @@ bytes32 gameId,
 uint256 line
 ```
 
-## `createMarket`
-
-Creates a Market based on an underlying Game and creates the underlying CTF condition
-
-### Parameters
-
-```[solidity]
-bytes32 gameId,
-MarketType marketType,
-Underdog underdog,
-uint256 line
-```
-
 ## `resolveMarket`
 
 Resolves a Market using the scores of a Settled Game

@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {DeployLib} from "./DeployLib.sol";
 import {TestHelper} from "./TestHelper.sol";
 
-import {MarketType} from "src/libraries/Structs.sol";
+import {MarketType, Underdog} from "src/libraries/Structs.sol";
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 
 import {IAuthEE} from "src/modules/interfaces/IAuth.sol";
@@ -18,7 +18,6 @@ import {Store} from "../mocks/Store.sol";
 import {Finder} from "../mocks/Finder.sol";
 import {Voting} from "../mocks/Voting.sol";
 import {AddressWhitelist} from "../mocks/AddressWhitelist.sol";
-import {OptimisticOracleV2} from "../mocks/OptimisticOracleV2.sol";
 import {IdentifierWhitelist} from "../mocks/IdentifierWhitelist.sol";
 
 import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
@@ -44,6 +43,8 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
 
     bytes32 public identifier = "MULTIPLE_VALUES";
 
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
     function setUp() public {
         admin = alice;
         proposer = brian;
@@ -59,9 +60,9 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         vm.label(usdc, "USDC");
 
         whitelist = address(new AddressWhitelist());
-        // optimisticOracle = address(new OptimisticOracleV2());
         Finder finder = new Finder();
-        optimisticOracle = DeployLib.OptimisticOracleV2(7200, address(finder));
+        optimisticOracle = DeployLib.deployOptimisticOracleV2(7200, address(finder));
+        vm.label(optimisticOracle, "OptimisticOracle");
 
         address store = address(new Store());
         address identifierWhitelist = address(new IdentifierWhitelist());
@@ -81,25 +82,28 @@ abstract contract OracleSetup is IUmaSportsOracleEE, IAuthEE, TestHelper {
         IERC20(usdc).approve(optimisticOracle, type(uint256).max);
         vm.prank(disputer);
         IERC20(usdc).approve(optimisticOracle, type(uint256).max);
-        vm.prank(admin);
-        IERC20(usdc).approve(optimisticOracle, type(uint256).max);
 
         vm.startPrank(admin);
         oracle = new UmaSportsOracle(ctf, optimisticOracle, whitelist);
         IERC20(usdc).approve(address(oracle), type(uint256).max);
         vm.stopPrank();
+        vm.label(address(oracle), "UmaSportsOracle");
     }
 
-    function getMarketId(bytes32 _gameId, MarketType marketType, uint256 line, address creator)
+    function getMarketId(bytes32 _gameId, MarketType marketType, Underdog underdog, uint256 line, address creator)
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(_gameId, marketType, line, creator));
+        return keccak256(abi.encode(_gameId, marketType, uint8(underdog), line, creator));
     }
 
-    function convertLine(uint256 line) internal pure returns (uint256) {
-        return (line * (10 ** 6)) + (5 * (10 ** 5));
+    function getConditionId(address _oracle, bytes32 _questionId, uint256 _outcomeSlotCount)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(_oracle, _questionId, _outcomeSlotCount));
     }
 
     function propose(int256 price, uint256 timestamp, bytes memory data) internal {

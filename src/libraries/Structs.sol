@@ -27,7 +27,7 @@ struct GameData {
     GameState state;
     // The Ordering of the game
     Ordering ordering;
-    // The score of the home teams
+    // The score of the home team
     uint32 homeScore;
     // The score of the away team
     uint32 awayScore;
@@ -45,6 +45,8 @@ struct GameData {
     bytes ancillaryData;
     // Flag indicating that the Game has been reset
     bool reset;
+    // Flag indicating that the Game should refund the creator
+    bool refund;
 }
 
 enum MarketType {

@@ -13,15 +13,9 @@ interface IUmaSportsOracleEE {
     error MarketDoesNotExist();
     error InvalidGame();
     error InvalidLine();
-    error InvalidBond();
 
-    error GameCannotBeSettled();
-    error DataDoesNotExist();
+    error GameNotResolvable();
 
-    error GameNotSettledOrCanceled();
-
-    error Settled();
-    error Paused();
     error GameCannotBePaused();
     error GameCannotBeUnpaused();
     error GameCannotBeEmergencySettled();
@@ -96,10 +90,6 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32);
 
     function createTotalsMarket(bytes32 gameId, uint256 line) external returns (bytes32);
-
-    function createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
-        external
-        returns (bytes32);
 
     function resolveMarket(bytes32 marketId) external;
 

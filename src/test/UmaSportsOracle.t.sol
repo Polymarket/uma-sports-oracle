@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {console2 as console} from "lib/forge-std/src/Test.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
+import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
 
 import {OracleSetup} from "./dev/OracleSetup.sol";
 
 import {IConditionalTokens} from "src/interfaces/IConditionalTokens.sol";
-
-import {IAddressWhitelistMock} from "./interfaces/IAddressWhitelistMock.sol";
-import {IOptimisticOracleV2Mock, State} from "./interfaces/IOptimisticOracleV2Mock.sol";
 
 import {AncillaryDataLib} from "src/libraries/AncillaryDataLib.sol";
 import {Ordering, GameData, GameState, MarketState, MarketType, MarketData, Underdog} from "src/libraries/Structs.sol";
@@ -99,8 +97,8 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketType marketType = MarketType.Winner;
         uint256 line = 0;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -124,8 +122,8 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 line = convertLine(_line);
         MarketType marketType = MarketType.Spreads;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -147,8 +145,8 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
         MarketType marketType = MarketType.Totals;
 
-        bytes32 marketId = getMarketId(gameId, marketType, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -169,11 +167,11 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
 
         // "Frontrun" the createWinnerMarket call by preparing the expected marketId on the CTF
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, admin);
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, admin);
         IConditionalTokens(ctf).prepareCondition(address(oracle), marketId, 2);
 
         // The "frontrunning" should have no impact on creating the market
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(MarketType.Winner), 0);
@@ -198,14 +196,20 @@ contract UmaSportsOracleTest is OracleSetup {
 
         uint256 outcomeCount = 2;
 
-        bytes32 marketId = getMarketId(gameId, marketType, _line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
+        bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, _line, admin);
+        bytes32 conditionId = getConditionId(address(oracle), marketId, outcomeCount);
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
 
         vm.prank(admin);
-        oracle.createMarket(gameId, marketType, Underdog.Home, _line);
+        if (marketType == MarketType.Winner) {
+            oracle.createWinnerMarket(gameId);
+        } else if (marketType == MarketType.Spreads) {
+            oracle.createSpreadsMarket(gameId, Underdog.Home, _line);
+        } else {
+            oracle.createTotalsMarket(gameId, _line);
+        }
 
         MarketData memory marketData = oracle.getMarket(marketId);
 
@@ -225,8 +229,10 @@ contract UmaSportsOracleTest is OracleSetup {
         test_createGame();
 
         vm.expectRevert(InvalidLine.selector);
-        vm.prank(admin);
-        oracle.createMarket(gameId, MarketType.Winner, Underdog.Home, 100);
+        oracle.createSpreadsMarket(gameId, Underdog.Home, 0);
+
+        vm.expectRevert(InvalidLine.selector);
+        oracle.createSpreadsMarket(gameId, Underdog.Home, 2_000_000);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
@@ -285,7 +291,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -328,7 +334,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -371,7 +377,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -412,7 +418,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -422,12 +428,46 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.resolveMarket(bytes32(0));
     }
 
-    function test_resolveMarket_revert_GameNotSettledOrCanceled() public {
+    function test_resolveMarket_revert_GameNotResolvable() public {
         test_createGame();
         bytes32 marketId = oracle.createWinnerMarket(gameId);
 
-        vm.expectRevert(GameNotSettledOrCanceled.selector);
+        vm.expectRevert(GameNotResolvable.selector);
         oracle.resolveMarket(marketId);
+    }
+
+    function test_resolveMarket_emergencySettleGame() public {
+        test_createGame();
+
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        uint32 home = 101;
+        uint32 away = 133;
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, home, away);
+
+        uint256[] memory payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;
+
+        vm.expectEmit();
+        emit MarketResolved(marketId, payouts);
+
+        oracle.resolveMarket(marketId);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(0, marketData.line);
+        assertEq(uint8(MarketType.Winner), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
+        // payout denominator is set when condition is resolved
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
 
     function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 _line, uint8 _marketType, uint8 _underdog)
@@ -451,7 +491,14 @@ contract UmaSportsOracleTest is OracleSetup {
         }
 
         // Create a market on the Game
-        bytes32 marketId = oracle.createMarket(gameId, marketType, underdog, line);
+        bytes32 marketId;
+        if (marketType == MarketType.Winner) {
+            marketId = oracle.createWinnerMarket(gameId);
+        } else if (marketType == MarketType.Spreads) {
+            marketId = oracle.createSpreadsMarket(gameId, underdog, line);
+        } else {
+            marketId = oracle.createTotalsMarket(gameId, line);
+        }
 
         int256 score = encodeScores(home, away, Ordering.HomeVsAway);
 
@@ -474,7 +521,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         // Assert conditional token state post resolution
         uint256 outcomeSlotCount = 2;
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeSlotCount));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, outcomeSlotCount);
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -601,7 +648,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_pauseMarket_revert_MarketCannotBePaused() public {
         test_resolveMarket_Winner();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         vm.expectRevert(MarketCannotBePaused.selector);
         vm.prank(admin);
@@ -610,7 +657,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_unpauseMarket() public {
         test_admin_pauseMarket();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, admin);
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, admin);
 
         vm.expectEmit();
         emit MarketUnpaused(marketId);
@@ -630,7 +677,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
     function test_admin_unpauseMarket_revert_MarketCannotBeUnpaused() public {
         test_resolveMarket_Winner();
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         vm.expectRevert(MarketCannotBeUnpaused.selector);
         vm.prank(admin);
@@ -672,7 +719,7 @@ contract UmaSportsOracleTest is OracleSetup {
     function test_admin_emergencyResolveMarket_revert_MarketCannotBeEmergencyResolved() public {
         test_resolveMarket_Winner();
 
-        bytes32 marketId = getMarketId(gameId, MarketType.Winner, 0, address(this));
+        bytes32 marketId = getMarketId(gameId, MarketType.Winner, Underdog.Home, 0, address(this));
 
         uint256[] memory payouts = new uint256[](2);
         payouts[0] = 0;
@@ -798,12 +845,21 @@ contract UmaSportsOracleTest is OracleSetup {
         dispute(gameData.timestamp, gameData.ancillaryData);
         gameData = oracle.getGame(gameId);
 
+        // Validate that the oracle now holds the reward
+        assertEq(gameData.reward, IERC20(usdc).balanceOf(address(oracle)));
+        // Validate that the refund flag is set
+        assertTrue(gameData.refund);
+
         // Push the score to the DVM
         voting.setPriceExists(true);
         voting.setPrice(data);
 
         // Settle the Game, updating the scores
         vm.expectEmit();
+
+        // Validate the reward refund to the creator
+        emit Transfer(address(oracle), gameData.creator, gameData.reward);
+
         emit GameSettled(gameId, home, away);
 
         settle(gameData.timestamp, gameData.ancillaryData);
