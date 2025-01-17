@@ -21,16 +21,39 @@ In short:
 * Anyone can call `createGame` on the Oracle, which will:
     - Send out a price request to the OO requesting the scores for the game
     - Create a Game if it doesn’t already exist
-- After a Game is created, anyone can call `createMarket` which will:
+* After a Game is created, anyone can call `createMarket` which will:
     - Prepare a new ConditionalTokensFramework Condition
     - Creates a Market on the contract if it does not already exist
-- Once score data is available, proposers will:
+* Once score data is available, proposers will:
     - Fetch the scores for the home and away teams respectively
-    - Encode the scores or other data(e.g if the game was canceled) according to UMIP 183
+    - Encode the scores or other data(e.g if the game was canceled) according to [UMIP 183](https://github.com/UMAprotocol/UMIPs/blob/master/UMIPs/umip-183.md)
     - Propose this value on the OO
-- OO disputers can challenge this value with a bond etc and escalate to the UMA DVM
-- Once the value goes through the DVM, anyone can call `settleGame` for a Game which will:
+* OO disputers can challenge this value with a bond etc and escalate to the UMA DVM
+* After UMA DVM process, anyone can settle the request on the OO which will execute a callback which:
     - Decode the scores retrieved from the OO
     - Store them onchain
-- Once a Game is settled or canceled, anyone can call `resolveMarket` for any of the Markets linked to the Game which will resolve the Market(s) based on the scores of the Game
+    - Sets the state of the Game
+* Once a Game is settled or canceled, anyone can call `resolveMarket` for any of the Markets linked to the Game which will resolve the Market(s) based on the scores of the Game
 
+
+## Development
+
+Clone the repo: `git clone https://github.com/Polymarket/uma-sports-oracle.git --recurse-submodules`
+
+---
+
+### Set-up
+
+Install [Foundry](https://github.com/foundry-rs/foundry/).
+
+Foundry has daily updates, run `foundryup` to update `forge` and `cast`.
+
+To install/update forge dependencies: `forge update`
+
+To build contracts: `forge build`
+
+---
+
+### Testing
+
+To run all tests: `forge test`
