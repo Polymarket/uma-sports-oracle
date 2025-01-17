@@ -141,7 +141,9 @@ contract UmaSportsOracleTest is OracleSetup {
     }
 
     function test_createMarket_Totals(uint256 line) public {
-        vm.assume(line > 0);
+        vm.assume(line > 0 && line < 500);
+        line = convertLine(line);
+
         test_createGame();
         MarketType marketType = MarketType.Totals;
 
@@ -233,6 +235,9 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(InvalidLine.selector);
         oracle.createSpreadsMarket(gameId, Underdog.Home, 2_000_000);
+
+        vm.expectRevert(InvalidLine.selector);
+        oracle.createTotalsMarket(gameId, 2);
     }
 
     function test_createMarket_revert_MarketAlreadyCreated() public {
@@ -920,13 +925,11 @@ contract UmaSportsOracleTest is OracleSetup {
         int256 data = encodeScores(home, away, Ordering.HomeVsAway);
 
         // propose and dispute it
-        propose(data, initialTimestamp, ancData);
-        dispute(initialTimestamp, ancData);
+        proposeAndDispute(data, initialTimestamp, ancData);
 
         // propose and dispute it again, pushing resolution to the DVM
         gameData = oracle.getGame(gameId);
-        propose(data, gameData.timestamp, gameData.ancillaryData);
-        dispute(gameData.timestamp, gameData.ancillaryData);
+        proposeAndDispute(data, gameData.timestamp, gameData.ancillaryData);
         gameData = oracle.getGame(gameId);
 
         // Validate that the oracle now holds the reward
@@ -1046,5 +1049,36 @@ contract UmaSportsOracleTest is OracleSetup {
 
         gameData = oracle.getGame(gameId);
         assertEq(initialTimestamp, gameData.timestamp);
+    }
+
+    function test_priceDisputed_oldRequestDisputes(uint32 home, uint32 away) public {
+        // creates and sends out OO req1
+        test_createGame();
+        fastForward(1);
+
+        GameData memory gameData;
+        gameData = oracle.getGame(gameId);
+
+        uint256 timestamp = gameData.timestamp;
+        int256 data = encodeScores(home, away, Ordering.HomeVsAway);
+        
+        // Admin resets game, creating OO req2
+        vm.prank(admin);
+        oracle.resetGame(gameId);
+        gameData = oracle.getGame(gameId);
+
+        // Settle req2, settling the Game via the callback
+        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
+
+        // Dispute req1, will no-op, because there is a more recent request
+        propose(data, timestamp, gameData.ancillaryData);
+        dispute(timestamp, gameData.ancillaryData);
+
+        gameData = oracle.getGame(gameId);
+
+        // Game remains the same
+        gameData = oracle.getGame(gameId);
+        assertEq(uint8(GameState.Settled), uint8(gameData.state));
+        assertTrue(gameData.timestamp > timestamp);
     }
 }

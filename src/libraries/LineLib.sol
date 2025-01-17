@@ -5,7 +5,7 @@ library LineLib {
     uint256 internal constant ONE = 10 ** 6;
     uint256 internal constant HALF_POINT = 500_000;
 
-    function _isValidSpreadLine(uint256 line) internal pure returns (bool) {
+    function _isValidLine(uint256 line) internal pure returns (bool) {
         return line % ONE == HALF_POINT;
     }
 

@@ -117,19 +117,21 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param gameId   - The unique Id of a Game to be linked to the Market
     /// @param underdog - The Underdog of the Market
     /// @param line     - The line of the Market.
-    /// @dev Must be a half point spread scaled by 10 ^ 6, e.g 1.5, 2.5
+    /// @dev Must be a half point scaled by 10 ^ 6, e.g 1.5, 2.5
     /// @dev For a Spread line of 2.5, line = 2_500_000
     function createSpreadsMarket(bytes32 gameId, Underdog underdog, uint256 line) external returns (bytes32) {
         // Validate that the spread line is a half point spread
-        if (!LineLib._isValidSpreadLine(line)) revert InvalidLine();
+        if (!LineLib._isValidLine(line)) revert InvalidLine();
         return _createMarket(gameId, MarketType.Spreads, underdog, line);
     }
 
     /// @notice Creates a Totals Market based on an underlying Game
     /// @param gameId   - The unique Id of a Game to be linked to the Market
     /// @param line     - The line of the Market
+    /// @dev Must be a half point scaled by 10 ^ 6, e.g 200.5, 100.5
     /// @dev For a Totals line of 218.5, line = 218_500_000
     function createTotalsMarket(bytes32 gameId, uint256 line) external returns (bytes32) {
+        if (!LineLib._isValidLine(line)) revert InvalidLine();
         return _createMarket(gameId, MarketType.Totals, Underdog.Home, line);
     }
 
@@ -190,9 +192,15 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @notice Callback to be executed by the OO dispute.
     /// Resets the Game by sending out a new price Request to the OO
     /// @param ancillaryData    - Ancillary data of the request
-    function priceDisputed(bytes32, uint256, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
+    function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256) external onlyOptimisticOracle {
         bytes32 gameId = keccak256(ancillaryData);
         GameData storage gameData = games[gameId];
+
+        // Ensure the request timestamp matches Game timestamp.
+        // This ensures that only the Live OO request is relevant to the Oracle
+        if (gameData.timestamp != timestamp) {
+            return;
+        }
 
         GameState state = gameData.state;
 

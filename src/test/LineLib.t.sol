@@ -13,9 +13,9 @@ contract LineLibTest is TestHelper {
         assertEq(line / (10 ** 6), LineLib._getLineLowerBound(line));
     }
 
-    function test_isValidSpreadLine(uint256 line) public pure {
+    function test_isValidLine(uint256 line) public pure {
         vm.assume(line > 0 && line < 10000);
         line = convertLine(line);
-        assertTrue(LineLib._isValidSpreadLine(line));
+        assertTrue(LineLib._isValidLine(line));
     }
 }
