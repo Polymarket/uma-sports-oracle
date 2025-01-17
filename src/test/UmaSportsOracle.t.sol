@@ -97,7 +97,7 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 line = 0;
 
         bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -122,7 +122,7 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketType marketType = MarketType.Spreads;
 
         bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -145,7 +145,7 @@ contract UmaSportsOracleTest is OracleSetup {
         MarketType marketType = MarketType.Totals;
 
         bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
@@ -170,7 +170,7 @@ contract UmaSportsOracleTest is OracleSetup {
         IConditionalTokens(ctf).prepareCondition(address(oracle), marketId, 2);
 
         // The "frontrunning" should have no impact on creating the market
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, uint8(MarketType.Winner), 0);
@@ -196,7 +196,7 @@ contract UmaSportsOracleTest is OracleSetup {
         uint256 outcomeCount = 2;
 
         bytes32 marketId = getMarketId(gameId, marketType, Underdog.Home, _line, admin);
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeCount));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, outcomeCount);
 
         vm.expectEmit();
         emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
@@ -282,7 +282,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -325,7 +325,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -368,7 +368,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -409,7 +409,7 @@ contract UmaSportsOracleTest is OracleSetup {
         assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
 
         // Assert conditional token state post resolution
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, uint256(2)));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
@@ -425,6 +425,41 @@ contract UmaSportsOracleTest is OracleSetup {
 
         vm.expectRevert(GameNotResolvable.selector);
         oracle.resolveMarket(marketId);
+    }
+
+    function test_resolveMarket_emergencySettleGame() public {
+        test_createGame();
+
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        uint32 home = 101;
+        uint32 away = 133;
+        vm.prank(admin);
+        oracle.pauseGame(gameId);
+        
+        vm.prank(admin);
+        oracle.emergencySettleGame(gameId, home, away);
+
+        uint256[] memory payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;        
+        
+        vm.expectEmit();
+        emit MarketResolved(marketId, payouts);
+
+        oracle.resolveMarket(marketId);
+
+        MarketData memory marketData = oracle.getMarket(marketId);
+        assertEq(gameId, marketData.gameId);
+        assertEq(0, marketData.line);
+        assertEq(uint8(MarketType.Winner), uint8(marketData.marketType));
+        assertEq(uint8(MarketState.Resolved), uint8(marketData.state));
+
+        // Assert conditional token state post resolution
+        bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
+        // payout denominator is set when condition is resolved
+        assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
+
     }
 
     function test_resolveMarket_fuzz(uint32 home, uint32 away, uint32 _line, uint8 _marketType, uint8 _underdog)
@@ -471,7 +506,7 @@ contract UmaSportsOracleTest is OracleSetup {
 
         // Assert conditional token state post resolution
         uint256 outcomeSlotCount = 2;
-        bytes32 conditionId = keccak256(abi.encodePacked(address(oracle), marketId, outcomeSlotCount));
+        bytes32 conditionId = getConditionId(address(oracle), marketId, outcomeSlotCount);
         // payout denominator is set when condition is resolved
         assertNotEq(0, IConditionalTokens(ctf).payoutDenominator(conditionId));
     }
