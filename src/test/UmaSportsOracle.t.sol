@@ -101,7 +101,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
-        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), uint8(Underdog.Home), line);
 
         vm.prank(admin);
         oracle.createWinnerMarket(gameId);
@@ -126,7 +126,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
-        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), uint8(Underdog.Home), line);
 
         vm.prank(admin);
         oracle.createSpreadsMarket(gameId, Underdog.Home, line);
@@ -151,7 +151,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
-        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), uint8(Underdog.Home), line);
 
         vm.prank(admin);
         oracle.createTotalsMarket(gameId, line);
@@ -176,7 +176,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, uint256(2));
 
         vm.expectEmit();
-        emit MarketCreated(marketId, gameId, conditionId, uint8(MarketType.Winner), 0);
+        emit MarketCreated(marketId, gameId, conditionId, uint8(MarketType.Winner), uint8(Underdog.Home), 0);
 
         vm.prank(admin);
         oracle.createWinnerMarket(gameId);
@@ -202,7 +202,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 conditionId = getConditionId(address(oracle), marketId, outcomeCount);
 
         vm.expectEmit();
-        emit MarketCreated(marketId, gameId, conditionId, _marketType, _line);
+        emit MarketCreated(marketId, gameId, conditionId, _marketType, uint8(Underdog.Home), _line);
 
         vm.prank(admin);
         if (marketType == MarketType.Winner) {

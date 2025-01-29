@@ -4,7 +4,7 @@ pragma solidity 0.8.27;
 library AncillaryDataLib {
     string private constant INITIALIZER_PREFIX = ",initializer:";
 
-    uint256 private constant MAX_ANCILLARY_DATA = 8139;
+    uint256 private constant MAX_ANCILLARY_DATA = 8066;
 
     function isValidAncillaryData(bytes memory data) internal pure returns (bool) {
         return data.length <= MAX_ANCILLARY_DATA;
