@@ -36,7 +36,12 @@ interface IUmaSportsOracleEE {
 
     /// @notice Emitted when a Market is created
     event MarketCreated(
-        bytes32 indexed marketId, bytes32 indexed gameId, bytes32 indexed conditionId, uint8 marketType, uint8 underdog, uint256 line
+        bytes32 indexed marketId,
+        bytes32 indexed gameId,
+        bytes32 indexed conditionId,
+        uint8 marketType,
+        uint8 underdog,
+        uint256 line
     );
 
     /// @notice Emitted when a Game is Canceled
