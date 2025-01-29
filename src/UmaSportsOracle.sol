@@ -570,7 +570,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // Create the underlying CTF market
         bytes32 conditionId = _prepareMarket(marketId);
 
-        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), line);
+        emit MarketCreated(marketId, gameId, conditionId, uint8(marketType), uint8(underdog), line);
         return marketId;
     }
 
