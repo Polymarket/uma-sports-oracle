@@ -338,6 +338,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param marketId - The unique marketId
     /// @param payouts  - The payouts used to resolve the market
     function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
+        if (!PayoutLib.validatePayouts(payouts)) revert InvalidPayouts();
+
         MarketData storage marketData = markets[marketId];
         if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
 

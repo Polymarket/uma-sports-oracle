@@ -32,6 +32,23 @@ library PayoutLib {
         return _constructTotalsPayouts(home, away, line);
     }
 
+    /// @notice Validates an externally provided payout array
+    /// @param payouts - The payout arrays
+    function validatePayouts(uint256[] memory payouts) internal pure returns (bool) {
+        if (payouts.length != 2) return false;
+
+        // Payout must be [0,1], [1,0] or [1,1]
+        // if payout[0] is 1, payout[1] must be 0 or 1
+        if ((payouts[0] == 1) && (payouts[1] == 0 || payouts[1] == 1)) {
+            return true;
+        }
+        // If payout[0] is 0, payout[1] must be 1
+        if ((payouts[0] == 0) && (payouts[1] == 1)) {
+            return true;
+        }
+        return false;
+    }
+
     /// @notice Construct canceled payouts
     /// Canceled games always resolve to 50/50
     function _constructCanceledPayouts() internal pure returns (uint256[] memory) {
