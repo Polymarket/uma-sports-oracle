@@ -35,7 +35,7 @@ struct GameData {
     address token;
     // The reward used to pay OO proposers
     uint256 reward;
-    // The bond which OO proposers must put up
+    // The bond, in addition to the final fee, which OO proposers must put up
     uint256 bond;
     // The custom liveness for the Game, 0 for default
     uint256 liveness;

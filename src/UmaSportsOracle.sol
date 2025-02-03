@@ -71,7 +71,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param ancillaryData    - Data used to resolve a Game
     /// @param ordering         - The Ordering(home vs away or vice versa) of the Game
     /// @param token            - The token used for rewards and bonds
-    /// @param reward           - The reward paid to successful proposers and disputers
+    /// @param reward           - The reward paid to successful proposers
     /// @param bond             - The bond put up by OO proposers and disputers
     /// @param liveness         - The liveness period, will be the default liveness period if 0.
     function createGame(
@@ -163,7 +163,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     //////////////////////////////////////////////////////////////////*/
 
     /// @notice Callback to be executed on OO settlement
-    /// Settles the Game by setting the home and away scores
+    /// If the OO request matches the Game and the Game is in a valid state,
+    /// this function settles the Game by setting the home and away scores
     /// @param timestamp        - Timestamp of the Request
     /// @param ancillaryData    - Ancillary data of the Request
     /// @param price            - The price settled on the Request
@@ -190,7 +191,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     /// @notice Callback to be executed by the OO dispute.
-    /// Resets the Game by sending out a new price Request to the OO
+    /// On dispute, this function resets the Game by sending out a new price Request to the OO.
+    /// No-op if the Game is disputed more than once, creating at most 2 price requests
     /// @param ancillaryData    - Ancillary data of the request
     function priceDisputed(bytes32, uint256 timestamp, bytes memory ancillaryData, uint256)
         external
@@ -516,7 +518,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     /// @notice Settles a Game
-    /// @dev GameState transition: Created -> Settled
+    /// @dev If the scores are valid, GameState transition: Created -> Settled
     /// @param data         - The data provided by the OO
     /// @param gameId       - The unique gameId
     /// @param gameData     - The gameData in storage
@@ -544,8 +546,8 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @dev Creates the underlying CTF market based on the marketId
     /// @param gameId       - The unique Id of a Game to be linked to the Market
     /// @param marketType   - The marketType of the Market
-    /// @param underdog     - The Underdog of the Market. Unused for Winner Markets.
-    /// @param line         - The line of the Market. Unused for Winner markets
+    /// @param underdog     - The Underdog of the Market. Used for Spreads Markets
+    /// @param line         - The line of the Market. Used for Spreads and Totals Markets
     function _createMarket(bytes32 gameId, MarketType marketType, Underdog underdog, uint256 line)
         internal
         returns (bytes32 marketId)
@@ -608,7 +610,9 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     }
 
     /// @notice Resets a Game by sending a new request to the OO
-    /// @dev We pay for this new request using the refunded reward that is transfered on dispute
+    /// @dev The requestor pays for the price request
+    /// @dev If the requestor is the Oracle, the price request is paid for by the refunded reward
+    /// @dev If the requestor is an admin, the price request is paid for by the caller
     /// @param requestor    - The address requesting the reset
     /// @param gameId       - The unique gameId
     /// @param gameData     - The GameData in storage
