@@ -93,7 +93,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         // Verify that the game is unique
         GameData storage gameData = games[gameId];
-        if (_isGameCreated(gameData)) revert GameAlreadyCreated();
+        if (_doesGameExist(gameData)) revert GameAlreadyCreated();
 
         uint256 timestamp = block.timestamp;
 
@@ -141,7 +141,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function resolveMarket(bytes32 marketId) external {
         MarketData storage marketData = markets[marketId];
         // Ensure the Market exists
-        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (!_doesMarketExist(marketData)) revert MarketDoesNotExist();
 
         // Validate that the Market can be resolved
         if (marketData.state != MarketState.Created) revert MarketCannotBeResolved();
@@ -257,7 +257,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function pauseGame(bytes32 gameId) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Created) revert GameCannotBePaused();
 
         gameData.state = GameState.Paused;
@@ -270,7 +270,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function unpauseGame(bytes32 gameId) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Paused) revert GameCannotBeUnpaused();
 
         gameData.state = GameState.Created;
@@ -282,7 +282,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function resetGame(bytes32 gameId) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Created) revert GameCannotBeReset();
 
         // Refund the reward to the Game's creator if necessary
@@ -297,7 +297,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function emergencySettleGame(bytes32 gameId, uint32 home, uint32 away) external onlyAdmin {
         GameData storage gameData = games[gameId];
 
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
         if (gameData.state != GameState.Paused) revert GameCannotBeEmergencySettled();
 
         gameData.state = GameState.EmergencySettled;
@@ -313,7 +313,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function pauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
 
-        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (!_doesMarketExist(marketData)) revert MarketDoesNotExist();
         if (marketData.state != MarketState.Created) revert MarketCannotBePaused();
 
         marketData.state = MarketState.Paused;
@@ -326,7 +326,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     function unpauseMarket(bytes32 marketId) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
 
-        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (!_doesMarketExist(marketData)) revert MarketDoesNotExist();
         if (marketData.state != MarketState.Paused) revert MarketCannotBeUnpaused();
 
         marketData.state = MarketState.Created;
@@ -339,7 +339,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param payouts  - The payouts used to resolve the market
     function emergencyResolveMarket(bytes32 marketId, uint256[] memory payouts) external onlyAdmin {
         MarketData storage marketData = markets[marketId];
-        if (!_isMarketCreated(marketData)) revert MarketDoesNotExist();
+        if (!_doesMarketExist(marketData)) revert MarketDoesNotExist();
 
         if (marketData.state != MarketState.Paused) revert MarketCannotBeEmergencyResolved();
 
@@ -355,7 +355,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param bond     - The updated bond
     function setBond(bytes32 gameId, uint256 bond) external onlyAdmin {
         GameData storage gameData = games[gameId];
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
 
         // no-op if the bond did not change
         if (bond == gameData.bond) return;
@@ -379,7 +379,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @param liveness - The liveness value
     function setLiveness(bytes32 gameId, uint256 liveness) external onlyAdmin {
         GameData storage gameData = games[gameId];
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
 
         // no-op if the liveness did not change
         if (liveness == gameData.liveness) return;
@@ -553,7 +553,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         GameData storage gameData = games[gameId];
 
         // Validate that the Game exists
-        if (!_isGameCreated(gameData)) revert GameDoesNotExist();
+        if (!_doesGameExist(gameData)) revert GameDoesNotExist();
 
         // Validate that we can create a Market from the Game
         if (gameData.state != GameState.Created) revert InvalidGame();
@@ -562,7 +562,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
         // Validate that the market is unique
         MarketData storage marketData = markets[marketId];
-        if (_isMarketCreated(marketData)) revert MarketAlreadyCreated();
+        if (_doesMarketExist(marketData)) revert MarketAlreadyCreated();
 
         // Store the Market
         _saveMarket(marketId, gameId, line, underdog, marketType);
@@ -655,11 +655,11 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         emit MarketResolved(marketId, payouts);
     }
 
-    function _isGameCreated(GameData storage gameData) internal view returns (bool) {
+    function _doesGameExist(GameData storage gameData) internal view returns (bool) {
         return gameData.ancillaryData.length > 0;
     }
 
-    function _isMarketCreated(MarketData storage marketData) internal view returns (bool) {
+    function _doesMarketExist(MarketData storage marketData) internal view returns (bool) {
         return marketData.gameId != bytes32(0);
     }
 
