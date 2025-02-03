@@ -248,19 +248,6 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.createWinnerMarket(gameId);
     }
 
-    function test_ready() public {
-        test_createGame();
-
-        assertFalse(oracle.ready(gameId));
-
-        // Push price to the OO
-        GameData memory gameData = oracle.getGame(gameId);
-        int256 data = encodeScores(101, 133, Ordering.HomeVsAway);
-        proposeAndSettle(data, gameData.timestamp, gameData.ancillaryData);
-
-        assertTrue(oracle.ready(gameId));
-    }
-
     function test_resolveMarket_Winner() public {
         test_createGame();
 

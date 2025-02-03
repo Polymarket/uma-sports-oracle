@@ -228,12 +228,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
                             VIEW FUNCTIONS 
     //////////////////////////////////////////////////////////////////*/
 
-    /// @notice Checks if a Game is ready to be settled
-    /// @param gameId   - The unique game Id
-    function ready(bytes32 gameId) public view returns (bool) {
-        return _ready(games[gameId]);
-    }
-
     /// @notice Returns the GameData
     /// @param gameId   - The unique game Id
     function getGame(bytes32 gameId) external view returns (GameData memory) {
@@ -665,14 +659,6 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
 
     function _refund(address token, address to, uint256 amount) internal {
         SafeTransferLib.safeTransfer(ERC20(token), to, amount);
-    }
-
-    function _ready(GameData storage gameData) internal view returns (bool) {
-        return _dataExists(gameData.timestamp, gameData.ancillaryData);
-    }
-
-    function _dataExists(uint256 requestTimestamp, bytes memory ancillaryData) internal view returns (bool) {
-        return optimisticOracle.hasPrice(address(this), IDENTIFIER, requestTimestamp, ancillaryData);
     }
 
     function _getOORequestState(uint256 requestTimestamp, bytes memory ancillaryData) internal returns (State) {
