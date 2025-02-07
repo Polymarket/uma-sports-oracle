@@ -595,6 +595,9 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
     /// @notice Cancels a game, setting the state to Canceled
     /// @dev GameState transition: Created -> Canceled
     function _cancelGame(bytes32 gameId, GameData storage gameData) internal {
+        // Refund the reward to the Game's creator if necessary
+        if (gameData.refund) _refund(gameData.token, gameData.creator, gameData.reward);
+
         gameData.state = GameState.Canceled;
         emit GameCanceled(gameId);
     }
