@@ -182,4 +182,59 @@ contract PayoutLibTest is TestHelper {
             assertEq(uint256(0), payouts[1]);
         }
     }
+
+    function test_validatePayouts() public pure {
+        uint256[] memory payouts;
+
+        // Valid payout arrays
+        // [0, 1]
+        payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 1;
+        assertTrue(PayoutLib.validatePayouts(payouts));
+
+        // [1, 0]
+        payouts = new uint256[](2);
+        payouts[0] = 1;
+        payouts[1] = 0;
+        assertTrue(PayoutLib.validatePayouts(payouts));
+
+        // [1, 1]
+        payouts = new uint256[](2);
+        payouts[0] = 1;
+        payouts[1] = 1;
+        assertTrue(PayoutLib.validatePayouts(payouts));
+
+        // Invalid cases
+        // Invalid length: [1, 0, 1]
+        payouts = new uint256[](3);
+        payouts[0] = 1;
+        payouts[1] = 0;
+        payouts[2] = 1;
+        assertFalse(PayoutLib.validatePayouts(payouts));
+
+        // [3, 4]
+        payouts = new uint256[](2);
+        payouts[0] = 3;
+        payouts[1] = 4;
+        assertFalse(PayoutLib.validatePayouts(payouts));
+
+        // [1, 4]
+        payouts = new uint256[](2);
+        payouts[0] = 1;
+        payouts[1] = 4;
+        assertFalse(PayoutLib.validatePayouts(payouts));
+
+        // [3, 0]
+        payouts = new uint256[](2);
+        payouts[0] = 3;
+        payouts[1] = 0;
+        assertFalse(PayoutLib.validatePayouts(payouts));
+
+        // [0, 0]
+        payouts = new uint256[](2);
+        payouts[0] = 0;
+        payouts[1] = 0;
+        assertFalse(PayoutLib.validatePayouts(payouts));
+    }
 }

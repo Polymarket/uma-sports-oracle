@@ -734,6 +734,33 @@ contract UmaSportsOracleTest is OracleSetup {
         oracle.emergencyResolveMarket(marketId, payouts);
     }
 
+    function test_admin_emergencyResolveMarket_revert_InvalidPayouts() public {
+        test_createGame();
+        vm.prank(admin);
+        bytes32 marketId = oracle.createWinnerMarket(gameId);
+
+        vm.prank(admin);
+        oracle.pauseMarket(marketId);
+
+        uint256[] memory payouts;
+        payouts = new uint256[](2);
+        payouts[0] = type(uint256).max;
+        payouts[1] = 1;
+
+        vm.expectRevert(InvalidPayouts.selector);
+        vm.prank(admin);
+        oracle.emergencyResolveMarket(marketId, payouts);
+
+        payouts = new uint256[](3);
+        payouts[0] = type(uint256).max;
+        payouts[1] = type(uint256).max;
+        payouts[2] = 1;
+
+        vm.expectRevert(InvalidPayouts.selector);
+        vm.prank(admin);
+        oracle.emergencyResolveMarket(marketId, payouts);
+    }
+
     function test_admin_setBond(uint256 bond) public {
         vm.assume(bond > 0 && bond < 100_000_000_000);
 
