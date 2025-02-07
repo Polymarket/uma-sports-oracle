@@ -116,6 +116,4 @@ interface IUmaSportsOracle is IUmaSportsOracleEE {
     function getGame(bytes32 gameId) external view returns (GameData memory);
 
     function getMarket(bytes32 marketId) external view returns (MarketData memory);
-
-    function ready(bytes32 gameId) external view returns (bool);
 }
