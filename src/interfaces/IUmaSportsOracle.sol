@@ -32,7 +32,7 @@ interface IUmaSportsOracleEE {
     error GameCannotBeReset();
 
     /// @notice Emitted when a Game is created
-    event GameCreated(bytes32 indexed gameId, bytes ancillaryData, uint256 timestamp);
+    event GameCreated(bytes32 indexed gameId, uint8 ordering, bytes ancillaryData, uint256 timestamp);
 
     /// @notice Emitted when a Market is created
     event MarketCreated(

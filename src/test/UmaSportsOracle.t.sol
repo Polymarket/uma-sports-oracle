@@ -26,7 +26,7 @@ contract UmaSportsOracleTest is OracleSetup {
         Ordering ordering = Ordering.HomeVsAway;
 
         vm.expectEmit();
-        emit GameCreated(gameId, appendedAncillaryData, block.timestamp);
+        emit GameCreated(gameId, uint8(ordering), appendedAncillaryData, block.timestamp);
 
         vm.prank(admin);
         oracle.createGame(ancillaryData, ordering, usdc, reward, bond, liveness);
@@ -55,7 +55,7 @@ contract UmaSportsOracleTest is OracleSetup {
         bytes32 expectedGameId = keccak256(expectedAncillaryData);
 
         vm.expectEmit();
-        emit GameCreated(expectedGameId, expectedAncillaryData, block.timestamp);
+        emit GameCreated(expectedGameId, uint8(ordering), expectedAncillaryData, block.timestamp);
 
         vm.prank(admin);
         bytes32 gID = oracle.createGame(data, ordering, usdc, _reward, _bond, _liveness);

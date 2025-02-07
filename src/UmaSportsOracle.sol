@@ -103,7 +103,7 @@ contract UmaSportsOracle is IUmaSportsOracle, IOptimisticRequester, Auth {
         // Send out OO data request
         _requestData(msg.sender, timestamp, data, token, reward, bond, liveness);
 
-        emit GameCreated(gameId, data, timestamp);
+        emit GameCreated(gameId, uint8(ordering), data, timestamp);
         return gameId;
     }
 
