@@ -9,12 +9,20 @@ import {UmaSportsOracle} from "src/UmaSportsOracle.sol";
 /// @author Polymarket
 contract Deploy is Script {
     /// @notice Deploys the Adapter
+    /// @param admin        - The admin
     /// @param ctf          - The ConditionalTokens Framework Address
     /// @param oo           - The OptimisticOracleV2 Address
     /// @param wl           - The AddressWhitelist Address
-    function deploy(address ctf, address oo, address wl) public returns (address oracle) {
+    function deploy(address admin, address ctf, address oo, address wl) public returns (address oracle) {
         vm.startBroadcast();
-        oracle = address(new UmaSportsOracle(ctf, oo, wl));
+        UmaSportsOracle orac = new UmaSportsOracle(ctf, oo, wl);
+
+        orac.addAdmin(admin);
+
+        orac.renounceAdmin();
+
+        oracle = address(orac);
+
         vm.stopBroadcast();
     }
 }
