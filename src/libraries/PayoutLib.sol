@@ -59,7 +59,7 @@ library PayoutLib {
     }
 
     /// @notice Construct winner payouts
-    /// Based on the game ordering, consruct payouts
+    /// Based on the game ordering, construct payouts
     /// @param ordering - The ordering of the Game, Home vs Away or Away vs Home
     /// @param home     - The score of the home team
     /// @param away     - The score of the away team

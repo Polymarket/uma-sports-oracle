@@ -56,7 +56,7 @@ interface IUmaSportsOracleEE {
     event GameSettled(bytes32 indexed gameId, uint256 indexed home, uint256 indexed away);
 
     /// @notice Emitted when a Game is emergency settled
-    event GameEmergencySettled(bytes32 indexed gameId, uint256 home, uint256 indexed away);
+    event GameEmergencySettled(bytes32 indexed gameId, uint256 indexed home, uint256 indexed away);
 
     /// @notice Emitted when a Market is resolved
     event MarketResolved(bytes32 indexed marketId, uint256[] payouts);
