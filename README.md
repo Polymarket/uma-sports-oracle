@@ -7,7 +7,7 @@ This repo contains contracts that use UMA's Optimistic Oracle(OO) to automatical
 ## Deployments
 | Network          | Address                                                                           |
 | ---------------- | --------------------------------------------------------------------------------- |
-| Polygon          |[0xbec046Ae23FEE91643a45b03f12c6afDb2628d9c](https://polygonscan.com/address/0xbec046Ae23FEE91643a45b03f12c6afDb2628d9c)|
+| Polygon          |[0xb21182d0494521Cf45DbbeEbb5A3ACAAb6d22093](https://polygonscan.com/address/0xb21182d0494521Cf45DbbeEbb5A3ACAAb6d22093)|
 
 
 ## Architecture
