@@ -42,6 +42,10 @@ In short:
 * Once a Game is settled or canceled, anyone can call `resolveMarket` for any of the Markets linked to the Game which will resolve the Market(s) based on the scores of the Game
 
 
+## Audit 
+
+These contracts have been audited by Chainsecurity and the report is available [here](./audit/ChainSecurity_Polymarket_UMA_Sports_Oracle_audit.pdf).
+
 ## Development
 
 Clone the repo: `git clone https://github.com/Polymarket/uma-sports-oracle.git --recurse-submodules`
